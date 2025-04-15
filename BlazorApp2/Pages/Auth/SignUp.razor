@@ -1,0 +1,83 @@
+﻿@page "/signup"
+@using System.ComponentModel.DataAnnotations;
+@using BlazorApp2.Data;
+@using BlazorApp2.Data.Services.Auth;
+@inject NavigationManager Navigation
+@inject UserSession UserSession
+@inject IJSRuntime JSRuntime
+<h3>SignUp</h3>
+
+<EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="form-group">
+        <label>邮箱</label>
+        <InputText @bind-Value="loginModel.Email" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label>密码</label>
+        <InputText type="password" @bind-Value="loginModel.Password" class="form-control" />
+    </div>
+
+    <div class="form-group">
+        <label>重复一遍密码</label>
+        <InputText type="password" @bind-Value="loginModel.Passagain" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">注册</button>
+</EditForm>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+
+
+@code {
+    private LoginModel loginModel = new();
+    private string errorMessage;
+    protected override async Task OnInitializedAsync()
+    {
+        if (await UserSession.IsAuthed())
+            Navigation.NavigateTo("/nopower", forceLoad: true);
+    }
+    private async Task HandleLogin()
+    {
+        if(loginModel.Password!=loginModel.Passagain)
+        {
+            errorMessage = "两次输入的密码不一致";
+            return;
+        }
+        var check = await UserSession.VailEP(loginModel.Email, loginModel.Password);
+        if (check != "email")
+        {
+            errorMessage = "已存在的邮箱账号";
+            return;
+        }
+        else
+        {
+             ///
+             ///  邮箱验证逻辑
+             ///
+
+            await UserSession.AddUser(loginModel.Email, loginModel.Password);
+           
+        }
+        await JSRuntime.InvokeVoidAsync("alert", "注册成功！点击跳转到登录页面");
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+    public class LoginModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get;set; }
+
+        [Required]
+        public string Password { get; set; }
+
+        [Required]
+        public string Passagain { get; set; }
+    }
+}

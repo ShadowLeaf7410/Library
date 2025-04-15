@@ -1,0 +1,72 @@
+﻿@page "/books/details/{bookId:guid}"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@inject UserSession UserSession
+@inject BookService BookService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@if(book==null)
+{
+	<p>未找到指定的书籍</p>
+}
+else
+{
+	<img src="@(book.ThumbnailUrl ?? "images/default-book.png")">
+	<h3>Titie:@IsNul(book.Title)</h3>
+	<p>Author:@IsNul(book.Author)</p>
+	<p>Publisher:@IsNul(book.Publisher)</p>
+	<p>PublicationYear:@IsNul(book.PublicationYear)</p>
+	<p>ISBN:@IsNul(book.ISBN)</p>
+	<p>Category:@IsNul(book.Category)</p>
+	<p>Description:@IsNul(book.Description)</p>
+	<p>AvailableCopies:@IsNul(book.AvailableCopies)</p>
+	<p>Location:@IsNul(book.Location)</p>
+	<p>Status:@IsNul(book.Status)</p>
+	<AuthorizeView Roles="User,Librarian,Admin">
+		<button @onclick="NaviToBorrow" Disabled="@(!isButton)">借阅</button>
+		<button @onclick="NaviToReserva" >预约</button>
+	</AuthorizeView>
+	<button @onclick="NaviToBack">返回</button>
+	<AuthorizeView Roles="Librarian,Admin">
+		<button @onclick="NaviToEdit">编辑</button>
+	</AuthorizeView>
+	<script>
+	window.goBack=function()
+	{
+	window.history.back();
+	}
+</script>
+}
+
+@code {
+	[Parameter]
+	public Guid BookId { get; set; }
+	private Book book;
+	private bool isButton = true;
+	protected override async Task OnInitializedAsync()
+	{
+		book = await BookService.GetBookById(BookId);
+		isButton = book.Status=="Available";
+	}
+	private T IsNul<T>(T isv)
+	{
+		return isv ?? default(T);
+	}
+	private void NaviToReserva()
+	{
+		Navigation.NavigateTo($"/reservations/create/{BookId}");
+	}
+	private void NaviToBorrow()
+	{
+		Navigation.NavigateTo($"/borrows/create/{BookId}");
+	}
+	private async Task NaviToBack()
+	{
+		await JSRuntime.InvokeVoidAsync("goBack");
+	}
+	private void NaviToEdit()
+	{
+		Navigation.NavigateTo($"/books/edit/{BookId}");
+	}
+}

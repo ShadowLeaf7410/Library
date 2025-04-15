@@ -1,0 +1,70 @@
+﻿@page "/fines"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Fines;
+@inject UserSession UserSession
+@inject FineService FineService
+@inject NavigationManager Navigation;
+<h3>Fine</h3>
+<div class="card">
+	@if(fines!=null)
+	{
+		<p>筛选状态:</p>
+		<InputSelect @bind-Value="selstatus" class="form-control">
+			<option value=@string.Empty>无</option>
+			<option value="Unpaid">Unpaid</option>
+			<option value="Paid">Paid</option>
+			<option value="Waived">Waived</option>
+		</InputSelect>
+		foreach(var fin in fines)
+		{
+			@if(fin.Status==selstatus||selstatus==string.Empty)
+			{
+				<div class="card">
+					<p>
+						<BlazorApp2.Pages.Books.BookNameReader Fine=@fin>
+						</BlazorApp2.Pages.Books.BookNameReader> 的逾期账单
+					</p>
+					<p>
+						Amount:@fin.Amount
+					</p>
+					<p>
+						Status:@fin.Status
+					</p>
+					<p>
+						IssueDate:@fin.IssueDate
+					</p>
+					<p>
+						PaidDate:
+						@if(fin.PaidDate!=null)
+						{
+							@fin.PaidDate
+						}
+					</p>
+					@if(fin.Status=="Unpaid")
+					{
+						<button @onclick="(()=>Pay(fin.FineId))">支付</button>
+					}
+				</div>
+			}
+		}
+	}
+</div>
+@code {
+	private List<Fine> fines;
+	private string selstatus = string.Empty;
+	protected override async Task OnInitializedAsync()
+	{
+		var user = await UserSession.GetCurrentUser();
+		if (user == null)
+		{
+			Navigation.NavigateTo("/login");
+			return;
+		}
+		fines = await FineService.GetUserFines(user.UserId);
+	}
+	private async Task Pay(Guid fId)
+	{
+		await FineService.DealPay(fId);
+	}
+}

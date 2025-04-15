@@ -1,0 +1,90 @@
+﻿@page "/reservations"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@inject UserSession UserSession;
+@inject BookService BookService
+@inject ReservationService ReservationService;
+@inject NavigationManager Navigation;
+
+<h3>Reservation</h3>
+<div class="card">
+	@if(reservations!=null)
+	{
+		<p>筛选状态:</p>
+		<InputSelect @bind-Value="selstatus" class="form-control">
+			<option value=@string.Empty>无</option>
+			<option value="Pending">Pending</option>
+			<option value="Fulfilled">Fulfilled</option>
+			<option value="Cancelled">Cancelled</option>
+			<option value="Expired">Expired</option>
+		</InputSelect>
+		@foreach(var res in reservations)
+		{
+			@if(res.Status==selstatus||selstatus==string.Empty)
+			{
+				<div class="card">
+					<div class="card-body">
+						<p>
+							预订
+							<a @onclick="(()=>NaviToDetail(res))">
+								<BlazorApp2.Pages.Books.BookNameReader Reservation=@res>
+								</BlazorApp2.Pages.Books.BookNameReader>
+							</a>
+						</p>
+						<p>
+							ReservationDate:@res.ReservationDate
+						</p>
+						<p>
+							ExpiryDate:@res.ExpiryDate
+						</p>
+						<p>
+							Status:@res.Status
+						</p>
+						@if(res.Status=="Fulfilled")
+						{
+							<button @onclick="(()=>NaviToBorrow(res))">立即借阅</button>
+						}
+						@if (res.Status == "Pending"||res.Status=="Fulfilled")
+						{
+							<button @onclick="(()=>Cancel(res))">取消</button>
+						}
+					</div>
+				</div>
+			}
+		}
+	}
+</div>
+@code {
+	private List<Reservation> reservations;
+	private string selstatus = string.Empty;
+	protected override async Task OnInitializedAsync()
+	{
+		var user = await UserSession.GetCurrentUser();
+		if (user == null)
+		{
+			Navigation.NavigateTo("/login");
+			return;
+		}
+		reservations = await ReservationService.GetUserReservations(user.UserId);
+	}
+	private async Task<string> GetBookName(Reservation res)
+	{
+		var book = await BookService.GetBookById(res.BookId);
+		return book.Title;
+	}
+	private async Task Cancel(Reservation res)
+	{
+		if (await ReservationService.CancelReservation(res.ReservationId))
+			StateHasChanged();
+		return;
+	}
+	private void NaviToBorrow(Reservation res)
+	{
+		Navigation.NavigateTo($"/borrows/create/{res.BookId}");
+	}
+	private void NaviToDetail(Reservation res)
+	{
+		Navigation.NavigateTo($"/books/details/{res.BookId}");
+	}
+}

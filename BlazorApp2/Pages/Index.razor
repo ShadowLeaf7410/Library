@@ -1,0 +1,32 @@
+﻿@page "/"
+@using BlazorApp2.Data.Services.Auth;
+@inject UserSession UserSession
+@inject NavigationManager Navigation
+
+<PageTitle>欢迎</PageTitle>
+
+<h1>欢迎使用吉林大学图示管理系统</h1>
+
+<AuthorizeView Roles="User,Librarian,Admin">
+	<Authorized>
+		<h2>
+			欢迎您，尊敬的 @name 
+		</h2>
+	</Authorized>
+</AuthorizeView>
+
+<div>
+	这里安排一些方形div用于跳转
+</div>
+
+@code{
+	private string name;
+	protected override async Task OnInitializedAsync()
+	{
+		var currentUser = await UserSession.GetCurrentUser();
+		if (currentUser == null)
+			return;
+		else
+			name = currentUser.Name;
+	}
+}

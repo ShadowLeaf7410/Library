@@ -1,0 +1,91 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">图书管理系统</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> 首页
+            </NavLink>
+        </div>
+        <AuthorizeView>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/login">
+                        <span class="oi oi-home" aria-hidden="true"></span> Login
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/books">
+                <span class="oi oi-home" aria-hidden="true"></span> Book
+            </NavLink>
+        </div>
+        <AuthorizeView Roles="User,Librarian,Admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/reservations">
+                        <span class="oi oi-home" aria-hidden="true"></span> Reservation
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/borrows">
+                        <span class="oi oi-home" aria-hidden="true"></span> Borrow
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/fines">
+                        <span class="oi oi-home" aria-hidden="true"></span> Fine
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/infi">
+                        <span class="oi oi-home" aria-hidden="true"></span> INFI
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/setting">
+                        <span class="oi oi-home" aria-hidden="true"></span> Settings
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+        <AuthorizeView Roles="Librarian,Admin">
+            <Authorized>
+                
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/users">
+                        <span class="oi oi-home" aria-hidden="true"></span> Users
+                    </NavLink>
+                </div>
+                
+                
+            </Authorized>
+        </AuthorizeView>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/About">
+                <span class="oi oi-home" aria-hidden="true"></span> About
+            </NavLink>
+        </div>
+    </nav>
+
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

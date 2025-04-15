@@ -1,0 +1,165 @@
+﻿@page "/infi"
+@using BlazorApp2.Data.Models
+@using BlazorApp2.Data.Services.Auth
+@inject UserSession UserSession
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+<h3>个人信息</h3>
+
+@if (user == null)
+{
+    <p>加载中...</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="@user" OnValidSubmit="@HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group">
+                    <label for="email">电子邮箱</label>
+                    <InputText id="email" @bind-Value="user.Email" class="form-control" />
+                    <ValidationMessage For="@(() => user.Email)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="name">姓名</label>
+                    <InputText id="name" @bind-Value="user.Name" class="form-control" />
+                    <ValidationMessage For="@(() => user.Name)" />
+                </div>
+
+                <button @onclick="changefix">修改密码</button>
+
+                @if(fixpassword)
+                {
+                    <div class="form-group">
+                        <label for="password">旧密码</label>
+                        <InputText id="password" type="password" @bind-Value="oldPassword" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">新密码</label>
+                        <InputText id="password" type="password" @bind-Value="newPassword" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">重复新密码</label>
+                        <InputText id="password" type="password" @bind-Value="againPassword" class="form-control" />
+                    </div>
+
+                    @if (errorMessage != null)
+                    {
+                        <div class="alert alert-danger mt-3">@errorMessage</div>
+                    }
+                }
+
+                <div class="form-group">
+                    <label>角色: @user.Role</label>
+                </div>
+
+                <div class="form-group">
+                    <label>注册时间: @user.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</label>
+                </div>
+
+                <div class="form-group mt-3">
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                    <button type="button" class="btn btn-secondary ml-2" @onclick="@Cancel">恢复</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private User user;
+    private string oldPassword;
+    private string newPassword;
+    private string againPassword;
+    private User originalUser;
+    private bool fixpassword = false;
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserSession.GetCurrentUser();
+        if (user == null)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        // 保存原始用户数据用于比较
+        originalUser = new User
+            {
+                Email = user.Email,
+                Name = user.Name,
+                HashedPassword = user.HashedPassword
+            };
+    }
+
+    private void changefix()
+    {
+        fixpassword = !fixpassword;
+        StateHasChanged();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        bool hasChanges = user.Email != originalUser.Email ||
+                         user.Name != originalUser.Name ||
+                         !string.IsNullOrEmpty(newPassword);
+
+        if (hasChanges)
+        {
+            string hashedPassword = string.IsNullOrEmpty(newPassword)
+                ? originalUser.HashedPassword
+                : UserSession.Pltohpassword(newPassword);
+            if (fixpassword)
+            {
+                if (oldPassword == null)
+                {
+                    errorMessage = "请输入旧密码";
+                    return;
+                }
+                if (hashedPassword!=originalUser.HashedPassword)
+                {
+                    errorMessage = "旧密码有误";
+                    return;
+                }
+                if (newPassword != againPassword)
+                {
+                    errorMessage = "两次输入的密码不一致";
+                    return;
+                }
+                errorMessage = "";
+                return;
+            }
+            await UserSession.UpdateUser(user.Email, user.Name, hashedPassword);
+
+            // 更新原始数据
+            originalUser.Email = user.Email;
+            originalUser.Name = user.Name;
+            originalUser.HashedPassword = hashedPassword;
+
+            // 清空密码字段
+            oldPassword = string.Empty;
+            newPassword = string.Empty;
+            againPassword = string.Empty;
+
+            // 显示成功消息或导航
+            await JSRuntime.InvokeVoidAsync("alert", "修改成功！");
+
+            user = await UserSession.GetCurrentUser();
+        }
+    }
+
+    private void Cancel()
+    {
+        // 恢复原始数据
+        user.Email = originalUser.Email;
+        user.Name = originalUser.Name;
+        newPassword = string.Empty;
+    }
+}

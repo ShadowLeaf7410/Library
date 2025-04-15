@@ -1,0 +1,27 @@
+﻿@page "/setting"
+@using BlazorApp2.Data;
+@using BlazorApp2.Data.Services.Auth;
+@inject UserSession UserSession
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+
+<h3>Setting</h3>
+<button @onclick="Logoff">退出登录</button>
+
+
+@code {
+	protected override async Task OnInitializedAsync()
+	{
+		var user = await UserSession.GetCurrentUser();
+		if (user == null)
+		{
+			Navigation.NavigateTo("/login");
+			return;
+		}
+	}
+	private void Logoff()
+	{
+		Navigation.NavigateTo($"/account/logoff", forceLoad: true);
+	}
+}

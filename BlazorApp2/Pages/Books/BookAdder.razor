@@ -1,0 +1,167 @@
+﻿@page "/books/adder"
+@using System.ComponentModel.DataAnnotations;
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@inject UserSession UserSession
+@inject BookService BookService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3>BookAdder</h3>
+
+<EditForm Model="@newbook" OnValidSubmit="@HandleAdd">
+    <DataAnnotationsValidator/>
+    <ValidationSummary />
+    <div class="form-group">
+        <label>Title</label>
+        <InputText @bind-Value="newbook.Title" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Author</label>
+        <InputText @bind-Value="newbook.Author" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Publisher</label>
+        <InputText @bind-Value="newbook.Publisher" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>PublicationYear</label>
+        <InputNumber @bind-Value="newbook.PublicationYear" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Category</label>
+        <InputText @bind-Value="newbook.Category" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>ISBN</label>
+        <InputText @bind-Value="newbook.ISBN" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Description</label>
+        <InputText @bind-Value="newbook.Description" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>TotalCopies</label>
+        <InputNumber @bind-Value="newbook.TotalCopies" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>AvailableCopies</label>
+        <InputNumber @bind-Value="newbook.AvailableCopies" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Location</label>
+        <InputText @bind-Value="newbook.Location" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Status</label>
+        <InputSelect @bind-Value="newbook.Status" class="form-control" >
+            <option value="Available">Available</option>
+            <option value="CheckedOut">CheckedOut</option>
+            <option value="Reserved">Reserved</option>
+            <option value="Lost">Lost</option>
+            <option value="Maintenance">Maintenance</option>
+        </InputSelect>
+    </div>
+    <div class="form-group">
+        <label>ThumbnailUrl</label>
+        <InputText @bind-Value="newbook.ThumbnailUrl" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary" disabled="@isSuccess">确定</button>
+</EditForm>
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+@if(isSuccess)
+{
+    <p>添加成功</p>
+    <button @onclick="Fresh" class="btn btn-primary">继续添加</button>
+    <button @onclick="NaviToBack" class="btn btn-primary">返回</button>
+    <script>
+        window.goBack=function()
+        {
+        window.history.back();
+        }</script>
+}
+
+@code {
+    private Newbook newbook = new();
+    private string errorMessage;
+    private bool isSuccess = false;
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.getRole();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+        }else if(user=="User")
+        {
+            Navigation.NavigateTo("/nopower");
+        }
+    }
+    private class Newbook
+    {
+        [Required]
+        public string Title { get; set; }
+        [Required]
+        public string Author { get; set; }
+        public string? Publisher { get; set; }
+        public int? PublicationYear { get; set; }
+        [Required]
+        public string Category { get; set; }
+        public string? ISBN { get; set; }
+        public string? Description { get; set; }
+        [Required]
+        public int TotalCopies { get; set; }
+        [Required]
+        public int AvailableCopies { get; set; }
+        public string? Location { get; set; }
+        [Required]
+        public string Status { get; set; }
+        public string? ThumbnailUrl { get; set; }
+    }
+    private async Task HandleAdd()
+    {
+        var thesame = await BookService.SearchBooks(title:newbook.Title,author:newbook.Author,category:newbook.Category,isbn:newbook.ISBN);
+        if(thesame!=null)
+        {
+            errorMessage = "已存在同种书籍";
+            return;
+        }
+        if(newbook.TotalCopies<0||newbook.AvailableCopies<0||newbook.AvailableCopies>newbook.TotalCopies)
+        {
+            errorMessage = "错误的书数";
+            return;
+        }
+        var nbook = new Book()
+        {
+                BookId = Guid.NewGuid(),
+                ISBN = newbook.ISBN,
+                Title = newbook.Title,
+                Author = newbook.Author,
+                Publisher = newbook.Publisher,
+                PublicationYear = newbook.PublicationYear,
+                Category = newbook.Category,
+                Description = newbook.Description,
+                TotalCopies = newbook.TotalCopies,
+                AvailableCopies = newbook.AvailableCopies,
+                Location = newbook.Location,
+                Status = newbook.Status,
+                ThumbnailUrl = newbook.ThumbnailUrl
+        };
+        await BookService.AddBook(nbook);
+        errorMessage = string.Empty;
+        isSuccess = true;
+    }
+    private void Fresh()
+    {
+        newbook = new();
+        errorMessage = string.Empty;
+        isSuccess = false;
+    }
+    private async Task NaviToBack()
+    {
+        await JSRuntime.InvokeVoidAsync("goBack");
+    }
+}

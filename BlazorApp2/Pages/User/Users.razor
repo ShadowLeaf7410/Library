@@ -1,0 +1,101 @@
+﻿@page "/users"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@inject UserSession UserSession
+@inject NavigationManager Navigation;
+@inject IJSRuntime JSRuntime
+<h3>Users</h3>
+<input @bind="searchKeyword"
+@onkeypress="HandleKeyPress"
+placeholder="输入用户名，邮箱"
+class="search-input"/>
+<button @onclick="Search"class="search-button">搜索</button>
+<p>选择状态:</p>
+<InputSelect @bind-Value="selectsta" class="form-control">
+	<option value=@string.Empty>空</option>
+	<option value="Active">Active</option>
+	<option value="Suspended">Suspended</option>
+	<option value="Deleted">Deleted</option>
+</InputSelect>
+<AuthorizeView Roles="Admin">
+	<Authorized>
+		<p>选择等级:</p>
+		<InputSelect @bind-Value="selectrol" class="form-control">
+			<option value=@string.Empty>空</option>
+			<option value="User">User</option>
+			<option value="Librarian">Librarian</option>
+		</InputSelect>
+	</Authorized>
+</AuthorizeView>
+<div>
+	@if(results!=null)
+	{
+		foreach(var user in results)
+		{
+			<p>用户名:@user.Name</p>
+			<p>邮箱:@user.Email</p>
+			<p>状态:@user.Status</p>
+			<AuthorizeView Roles="Admin">
+				<Authorized>
+					<button @onclick="(()=>SetLibrarian(user.UserId))">设置管理员</button>
+					<button @onclick="(()=>SetUser(user.UserId))">设置用户</button>
+				</Authorized>
+			</AuthorizeView>
+		}
+	}
+</div>
+@code {
+	private string searchKeyword=string.Empty;
+	private string selectsta = string.Empty;
+	private string selectrol = string.Empty;
+	private List<User> results;
+	protected override async Task OnInitializedAsync()
+	{
+		var role = await UserSession.getRole();
+		if(role==null)
+		{
+			Navigation.NavigateTo("/login");
+			return;
+		}
+		if (role == "User")
+		{
+			Navigation.NavigateTo("/nopower");
+			return;
+		}
+	}
+	private async Task HandleKeyPress(KeyboardEventArgs e)
+	{
+		if (e.Key == "Enter")
+		{
+			await Search();
+		}
+	}
+	private async Task Search()
+	{
+		if(selectsta==string.Empty&&selectrol==string.Empty)
+		{
+			results = await UserSession.SearchUsers(keyword: searchKeyword);
+		}
+		else if (selectsta != string.Empty && selectrol == string.Empty)
+		{
+			results = await UserSession.SearchUsers(keyword: searchKeyword,status:selectsta);
+		}
+		else if (selectsta == string.Empty && selectrol != string.Empty)
+		{
+			results = await UserSession.SearchUsers(keyword: searchKeyword, role:selectrol);
+		}else
+		{
+			results = await UserSession.SearchUsers(keyword: searchKeyword, status: selectsta, role: selectrol);
+		}
+	}
+	private async Task SetLibrarian(Guid userId)
+	{
+		await UserSession.SetLibrarian(userId);
+		await JSRuntime.InvokeVoidAsync("alert", "成功设置管理员！");
+	}
+	private async Task SetUser(Guid userId)
+	{
+		await UserSession.SetUser(userId);
+		await JSRuntime.InvokeVoidAsync("alert", "成功设置用户！");
+	}
+}

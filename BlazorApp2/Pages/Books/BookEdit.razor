@@ -1,0 +1,180 @@
+﻿@page "/books/edit/{bookId:guid}"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@using Microsoft.AspNetCore.WebUtilities
+@inject UserSession UserSession
+@inject BookService BookService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@if(book==null)
+{
+    <p>未找到指定的书籍</p>
+}else
+{
+    <img src="@(book.ThumbnailUrl ?? "images/default-book.png")">
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="book" OnInvalidSubmit="@HandleSubmit">
+                <DataAnnotationsValidator/>
+                <ValidationSummary/>
+                <div class="form-group">
+                    <label>Title</label>
+                    <InputText @bind-Value="book.Title" class="form-control" />
+                    <ValidationMessage For="@(()=>book.Title)"/>
+                </div>
+                <div class="form-group">
+                    <label>Author</label>
+                    <InputText @bind-Value="book.Author" class="form-control" />
+                    <ValidationMessage For="@(()=>book.Author)" />
+                </div>
+                <div class="form-group">
+                    <label>Publisher</label>
+                    <InputText @bind-Value="book.Publisher" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>PublicationYear</label>
+                    <InputNumber @bind-Value="book.PublicationYear" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <InputText @bind-Value="book.Category" class="form-control" />
+                    <ValidationMessage For="@(()=>book.Category)"/>
+                </div>
+                <div class="form-group">
+                    <label>ISBN</label>
+                    <InputText @bind-Value="book.ISBN" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <InputText @bind-Value="book.Description" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>TotalCopies</label>
+                    <InputNumber @bind-Value="book.TotalCopies" class="form-control" />
+                    <ValidationMessage For="@(()=>book.TotalCopies)" />
+                </div>
+                <div class="form-group">
+                    <label>AvailableCopies</label>
+                    <InputNumber @bind-Value="book.AvailableCopies" class="form-control" />
+                    <ValidationMessage For="@(()=>book.AvailableCopies)" />
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <InputText @bind-Value="book.Location" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <InputSelect @bind-Value="book.Status" class="form-control">
+                        <option value="Available">Available</option>
+                        <option value="CheckedOut">CheckedOut</option>
+                        <option value="Reserved">Reserved</option>
+                        <option value="Lost">Lost</option>
+                        <option value="Maintenance">Maintenance</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(()=>book.Status)" />
+                </div>
+                <div class="form-group">
+                    <label>ThumbnailUrl</label>
+                    <InputText @bind-Value="book.ThumbnailUrl" class="form-control" />
+                </div>
+                <button type="submit" class="btn btn-primary">确定修改</button>
+                <button @onclick="Cancle" class="btn btn-primary">取消修改</button>
+                <button @onclick="NaviToBack" class="btn btn-primary">返回</button>
+            </EditForm>
+        </div>
+    </div>
+    <script>
+        window.goBack=function()
+        {
+        window.history.back();
+        }</script>
+}
+@if(errorMessage!=null)
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+@if(isSuccess)
+{
+    <p>修改成功！</p>
+}
+@code {
+    [Parameter]
+    public Guid BookId { get; set; }
+    private Book book;
+    private Book nbook;
+    private string errorMessage;
+    private bool isSuccess = false;
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.getRole();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+        }
+        else if (user == "User")
+        {
+            Navigation.NavigateTo("/nopower");
+        }
+        book = await BookService.GetBookById(BookId);
+        nbook = new Book
+        {
+                BookId = book.BookId,
+                ISBN = book.ISBN,
+                Title = book.Title,
+                Author = book.Author,
+                Publisher = book.Publisher,
+                PublicationYear = book.PublicationYear,
+                Category = book.Category,
+                Description = book.Description,
+                TotalCopies = book.TotalCopies,
+                AvailableCopies = book.AvailableCopies,
+                Location = book.Location,
+                Status = book.Status,
+                ThumbnailUrl = book.ThumbnailUrl
+        };
+    }
+    private async Task HandleSubmit()
+    {
+        if(book.Title==string.Empty||book.Author==string.Empty||book.Category==string.Empty||book.Status==string.Empty)
+        {
+            errorMessage = "缺少不许为空的填充";
+            isSuccess = false;
+            return;
+        }
+        if (book.TotalCopies < 0 || book.AvailableCopies < 0 || book.AvailableCopies > book.TotalCopies)
+        {
+            errorMessage = "数量出现错误";
+            isSuccess = false;
+            return;
+        }
+        await BookService.UpdateBook(book);
+        errorMessage = string.Empty;
+        nbook = new Book
+            {
+                BookId = book.BookId,
+                ISBN = book.ISBN,
+                Title = book.Title,
+                Author = book.Author,
+                Publisher = book.Publisher,
+                PublicationYear = book.PublicationYear,
+                Category = book.Category,
+                Description = book.Description,
+                TotalCopies = book.TotalCopies,
+                AvailableCopies = book.AvailableCopies,
+                Location = book.Location,
+                Status = book.Status,
+                ThumbnailUrl = book.ThumbnailUrl
+            };
+        isSuccess = true;
+    }
+    private void Cancle()
+    {
+        book = nbook;
+        StateHasChanged();
+    }
+    private async Task NaviToBack()
+    {
+        await JSRuntime.InvokeVoidAsync("goBack");
+    }
+}

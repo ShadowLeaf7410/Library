@@ -1,0 +1,77 @@
+﻿@page "/reservations/create/{bookId:guid}"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@inject UserSession UserSession
+@inject BookService BookService
+@inject ReservationService ReservationService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+<h3>ReserCreater</h3>
+@if(book!=null)
+{
+	<div class="card">
+		<img src="@(book.ThumbnailUrl ?? "images/default-book.png")">
+		<p>@book.Title</p>
+		<p>@book.Author</p>
+		<p>@book.Status</p>
+		<InputSelect @bind-Value="day" class="form-control">
+			<option value="1">1</option>
+			<option value="2">2</option>
+			<option value="3">3</option>
+			<option value="4">4</option>
+			<option value="5">5</option>
+			<option value="6">6</option>
+			<option value="7">7</option>
+			<option value="8">8</option>
+		</InputSelect>
+		<button @onclick="HandleSubmit">确定</button>
+		<button @onclick="NaviToBack">取消</button>
+		<script>
+			window.goBack=function()
+			{
+			window.history.back();
+			}
+		</script>
+	</div>
+}else
+{
+	<p>未找到该书籍</p>
+}
+
+@if(errorMessage!=null)
+{
+	<div class="alert alert-danger mt-3">@errorMessage</div>
+}
+@code {
+	[Parameter]
+	public  Guid BookId { get; set; }
+	private Book book;
+	private int day = 3;
+	private string errorMessage;
+	protected override async Task OnInitializedAsync()
+	{
+		var user = await UserSession.getRole();
+		if (user == null)
+		{
+			Navigation.NavigateTo("/login");
+		}
+		book = await BookService.GetBookById(BookId);
+	}
+	private async Task HandleSubmit()
+	{
+		var user = await UserSession.GetCurrentUser();
+		if (await ReservationService.ExistVail(user.UserId, BookId))
+		{
+			errorMessage = "已存在有关预约，不可多次预约";
+			return;
+		}
+		await ReservationService.CreateReservation(user.UserId, BookId, day);
+		await JSRuntime.InvokeVoidAsync("alert", "预约成功！");
+		await NaviToBack();
+	}
+	private async Task NaviToBack()
+	{
+		await JSRuntime.InvokeVoidAsync("goBack");
+	}
+}

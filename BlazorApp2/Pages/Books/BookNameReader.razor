@@ -1,0 +1,39 @@
+﻿@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Books;
+@inject BookService BookService
+@inject BorrowService BorrowService
+@if(BookName!=null)
+{
+	@BookName
+}else
+{
+	<text>未知书名</text>
+}
+@code {
+	[Parameter]
+	public Reservation? Reservation{ get; set; }
+	[Parameter]
+	public Borrowing? Borrowing { get; set; }
+	[Parameter]
+	public Fine? Fine { get; set; }
+	private string? BookName;
+	protected override async Task OnParametersSetAsync()
+	{
+		if(Reservation!=null)
+		{
+			var book = await BookService.GetBookById(Reservation.BookId);
+			BookName = book.Title;
+		}
+		if(Borrowing!=null)
+		{
+			var book = await BookService.GetBookById(Borrowing.BookId);
+			BookName = book.Title;
+		}
+		if(Fine!=null)
+		{
+			var borrow = await BorrowService.GetBorrowingById(Fine.BorrowId);
+			var book = await BookService.GetBookById(borrow.BookId);
+			BookName= book.Title;
+		}
+	}
+}

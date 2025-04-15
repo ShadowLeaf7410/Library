@@ -1,0 +1,176 @@
+﻿@page "/books/search"
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Books;
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Navigation
+@inject BookService BookService
+<h3>BookSearch</h3>
+<input @bind="searchKeyword"
+@onkeypress="HandleKeyPress"
+placeholder="输入书名、作者或ISBN..."
+class="search-input" />
+<button @onclick="SearchBooks" class="search-button">搜索</button>
+<button class="advanced-toggle" @onclick="ChangeAnv">
+    高级筛选 @(showAdvanced ? "▲" : "▼")
+</button>
+@if(showAdvanced)
+{
+    <div class="advanced-filters">
+        <div class="filter-group">
+            <p>选择类型</p>
+            <InputSelect @bind-Value="selectcate" class="form-control">
+                <option value=@string.Empty>无</option>
+                @if(categories!=null)
+                {
+                    foreach(var category in categories)
+                    {
+                        <option value=@category>@category</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+
+        <div class="filter-group">
+            <p>选择状态</p>
+            <InputSelect @bind-Value="selectsta" class="form-control">
+                <option value=@string.Empty>无</option>
+                @if(status!=null)
+                {
+                    foreach(var sta in status)
+                    {
+                        <option value=@sta>@sta</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+
+        <div class="filter-group">
+            <button @onclick="Change1" class ="btn btn-primary">@text1</button>
+            <br>
+            @if(isstart)
+            {
+                <input type="month" @bind="startDate">
+            }
+        </div>
+        <div class="filter-group">
+            <button @onclick="Change2" class="btn btn-primary">@text2</button>
+            <br>
+            @if (isend)
+            {
+                <input type="month" @bind="endDate">
+            }
+        </div>
+    </div>
+}
+
+<div>
+    @if(results!=null)
+    {
+        @foreach (var book in results)
+        {
+            <div class="card">
+                <p @onclick="()=>NaviToDetail(book.BookId)">@book.Title</p>
+                <p>作者:@book.Author</p>
+                <p>状态:@book.Status</p>
+            </div>
+            <AuthorizeView Roles="Librarian,Admin">
+                <button >删除该书籍</button>
+            </AuthorizeView>
+        }
+    }
+
+</div>
+@code {
+    private bool showAdvanced = false;
+    private string searchKeyword = string.Empty;
+    private List<string> categories;
+    private string selectcate = null;
+    private List<string> status;
+    private string selectsta = null;
+    private bool isstart = false;
+    private string text1 = "启用前界时间";
+    private DateTime startDate = DateTime.Now;
+    private bool isend = false;
+    private string text2 = "启用回括时间";
+    private DateTime endDate = DateTime.Now;
+    private List<Book> results;
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("searchKeyword", out var idParam))
+        {
+            searchKeyword = idParam.First();
+        }
+        categories = await BookService.GetAllCategories();
+        status = BookService.GetAllStatusOptions();
+        if (searchKeyword != string.Empty)
+            await SearchBooks();
+    }
+    private void ChangeAnv()
+    {
+        showAdvanced = !showAdvanced;
+        StateHasChanged();
+    }
+    private void Change1()
+    {
+        if(isstart)
+        {
+            text1 = "启用前界时间";
+        }else
+        {
+            text1 = "禁用前界时间";
+        }
+        isstart = !isstart;
+        startDate = DateTime.Now;
+    }
+    private void Change2()
+    {
+        if(isend)
+        {
+            text2 = "启用回括时间";
+        }else
+        {
+            text2 = "禁用回括时间";
+        }
+        isend = !isend;
+        endDate = DateTime.Now;
+    }
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchBooks();
+        }
+    }
+    private async Task SearchBooks()
+    {
+        if(showAdvanced)
+        {
+            if (selectcate == string.Empty)
+                selectcate = null;
+            if (selectsta == string.Empty)
+                selectsta = null;
+            if (!isstart)
+                startDate = default;
+            if (!isend)
+                endDate = default;
+            results = await BookService.SearchBooks(keyword: searchKeyword, category: selectcate, status: selectsta, start: startDate, end: endDate);
+        }else
+        {
+            if(categories.Contains(searchKeyword))
+            {
+                results = await BookService.SearchBooks(category: searchKeyword);
+            }
+            results = await BookService.SearchBooks(keyword: searchKeyword);
+        }
+    }
+    private async Task DelBook(Guid bId)
+    {
+        await BookService.DeleteBook(bId);
+    }
+    private void NaviToDetail(Guid bookId)
+    {
+        Navigation.NavigateTo($"/books/details/{bookId}");
+    }
+}

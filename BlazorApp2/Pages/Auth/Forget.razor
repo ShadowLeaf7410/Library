@@ -1,0 +1,84 @@
+﻿@page "/forget"
+@using System.ComponentModel.DataAnnotations;
+@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Mails;
+@inject UserSession UserSession
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+<h3>Forget</h3>
+
+<div class="form-group">
+	<label>邮箱</label>
+	<InputText @bind-Value="reset.Email" class="form-control" />
+</div>
+
+<div class="form-group">
+	<label>新密码</label>
+	<InputText type="password" @bind-Value="reset.Password" class="form-control" />
+</div>
+
+<div class="form-group">
+	<label>重复一遍新密码</label>
+	<InputText type="password" @bind-Value="reset.Passagain" class="form-control" />
+</div>
+<ValiEmail email="@reset.Email" isVail="HandleVail" />
+<button @onclick="VailSubmit" class="btn btn-primary"> 确定 </button>
+
+@if(errorMessage!=null)
+{
+	<div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+	private ResetModel reset=new();
+	private string errorMessage;
+	private bool isvail = false;
+	protected override async Task OnInitializedAsync()
+	{
+		var user = await UserSession.GetCurrentUser();
+		if(user!=null)
+		{
+			Navigation.NavigateTo("/nopower");
+		}
+	}
+	private async Task VailSubmit()
+	{
+		if (reset.Password != reset.Passagain)
+		{
+			errorMessage = "两次输入的密码不一致";
+			return;
+		}
+		var check = await UserSession.VailEP(reset.Email, reset.Password);
+		if (check == "email")
+		{
+			errorMessage = "不存在的邮箱账号";
+			return;
+		}
+		if(isvail==false)
+		{
+			errorMessage = "请验证邮箱";
+			return;
+		}
+		errorMessage = null;
+		await UserSession.FindLostPass(reset.Email, reset.Password);
+		await JSRuntime.InvokeVoidAsync("alert", "找回成功！");
+		Navigation.NavigateTo("/login");
+	}
+	private void HandleVail(bool newVali)
+	{
+		isvail = newVali;
+	}
+	public class ResetModel
+	{
+		[Required]
+		[EmailAddress]
+		public string Email { get; set; }
+
+		[Required]
+		public string Password { get; set; }
+
+		[Required]
+		public string Passagain { get; set; }
+	}
+}

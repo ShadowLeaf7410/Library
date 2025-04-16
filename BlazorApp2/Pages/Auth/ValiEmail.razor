@@ -1,0 +1,90 @@
+﻿@using BlazorApp2.Data.Models;
+@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data.Services.Mails;
+@using System.ComponentModel.DataAnnotations;
+@using System.Timers;
+@inject MailService MailService
+@inject VerificationService VerificationService
+<h3>ValiEmail</h3>
+<div class="card">
+	<div class="card-body">
+		<p>@email</p>
+		<InputText @bind-Value="code" class="form-control"/>
+		<button @onclick="VerifyCode">确定</button>
+		@if(isDisabled==false)
+		{
+			<button @onclick="SendVerificationCode" disabled="@isDisabled">发送验证码</button>
+		}else
+		{
+			<button @onclick="SendVerificationCode" disabled="@isDisabled">重发冷却"@remainingSeconds"</button>
+		}
+
+	</div>
+	@if (!string.IsNullOrEmpty(message))
+	{
+		<div class="alert alert-info mt-3">@message</div>
+	}
+</div>
+
+@code {
+	[Required]
+	[EmailAddress]
+	[Parameter]
+	public string email { get; set; }
+	[StringLength(6, MinimumLength = 6, ErrorMessage = "验证码必须是6位数字")]
+	private string code;
+	[Parameter]
+	public EventCallback<bool> isVail { get; set; }
+	private string message = "";
+	private bool isDisabled = false;
+	private int remainingSeconds = 0;
+	private System.Timers.Timer timer;
+	private readonly int cooldownDuration = 60;
+	private async Task SendVerificationCode()
+	{
+		var code = VerificationService.GenerateVerificationCode(email);
+		await MailService.SendVerificationCodeAsync(email, code);
+		message = "验证码已发送到您的邮箱，请查收！";
+		StartCooldown();
+	}
+	private async Task VerifyCode()
+	{
+		if (VerificationService.VerifyCode(email, code))
+		{
+			message = "验证成功！";
+			// 这里可以执行验证成功后的操作，如用户注册等
+			await isVail.InvokeAsync(true);
+		}
+		else
+		{
+			message = "验证码无效或已过期！";
+		}
+	}
+	private void StartCooldown()
+	{
+		isDisabled = true;
+		remainingSeconds = cooldownDuration;
+
+		timer = new System.Timers.Timer(1000); // 1秒间隔
+		timer.Elapsed += (sender, e) =>
+		{
+			remainingSeconds--;
+
+			if (remainingSeconds <= 0)
+			{
+				timer.Stop();
+				isDisabled = false;
+				InvokeAsync(StateHasChanged); // 必须在UI线程更新状态
+			}
+			else
+			{
+				InvokeAsync(StateHasChanged);
+			}
+		};
+		timer.Start();
+	}
+	public void Dispose()
+	{
+		timer?.Dispose();
+	}
+}

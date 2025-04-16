@@ -20,7 +20,6 @@ namespace BlazorApp2.Data.Services.Auth
             _httpContextAccessor = httpContextAccessor;
             _context = context;
         }
-
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             var principal=_httpContextAccessor.HttpContext?.User ?? new ClaimsPrincipal(new ClaimsIdentity());
@@ -234,6 +233,12 @@ namespace BlazorApp2.Data.Services.Auth
             else
                 return;
         }
+        public async Task FindLostPass(string email,string newpass)
+        {
+            var user=await _context.Users.FirstOrDefaultAsync(u=>u.Email==email);
+            user.HashedPassword = Pltohpassword(newpass);
+            await _context.SaveChangesAsync();
+        }
         public async Task SetLibrarian(Guid userId)
         {
             var user=await _context.Users.FirstOrDefaultAsync(u=>u.UserId == userId);
@@ -276,6 +281,10 @@ namespace BlazorApp2.Data.Services.Auth
             string details = null, string ip = null)
         {
             var user = await GetCurrentUser();
+            if (user == null)
+            {
+                user=await _context.Users.FirstOrDefaultAsync(u => u.Email == "admin@library.edu");
+            }
             ip = GetIp();
             var log = new SystemLog
             {

@@ -7,9 +7,6 @@
 @inject IJSRuntime JSRuntime
 <h3>SignUp</h3>
 
-<EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
     <div class="form-group">
         <label>邮箱</label>
         <InputText @bind-Value="loginModel.Email" class="form-control" />
@@ -24,9 +21,8 @@
         <label>重复一遍密码</label>
         <InputText type="password" @bind-Value="loginModel.Passagain" class="form-control" />
     </div>
-
-    <button type="submit" class="btn btn-primary">注册</button>
-</EditForm>
+    <ValiEmail email="@loginModel.Email" isVail="HandleVail"/>
+    <button @onclick="HandleLogin" class="btn btn-primary">注册</button>
 
 @if (errorMessage != null)
 {
@@ -38,6 +34,7 @@
 @code {
     private LoginModel loginModel = new();
     private string errorMessage;
+    private bool isvail = false;
     protected override async Task OnInitializedAsync()
     {
         if (await UserSession.IsAuthed())
@@ -56,17 +53,19 @@
             errorMessage = "已存在的邮箱账号";
             return;
         }
-        else
+        if(isvail==false)
         {
-             ///
-             ///  邮箱验证逻辑
-             ///
-
-            await UserSession.AddUser(loginModel.Email, loginModel.Password);
-           
+            errorMessage = "请验证邮箱";
+            return;
         }
+       
+        await UserSession.AddUser(loginModel.Email, loginModel.Password);
         await JSRuntime.InvokeVoidAsync("alert", "注册成功！点击跳转到登录页面");
         Navigation.NavigateTo("/login", forceLoad: true);
+    }
+    private void HandleVail(bool newVali)
+    {
+        isvail = newVali;
     }
     public class LoginModel
     {

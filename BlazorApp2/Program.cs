@@ -2,10 +2,9 @@ using BlazorApp2.Data;
 using BlazorApp2.Data.Services.Auth;
 using BlazorApp2.Data.Services.Books;
 using BlazorApp2.Data.Services.Fines;
+using BlazorApp2.Data.Services.Mails;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Components.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddDbContext<LibDbContext>();
+builder.Services.AddTransient<MailService>();
+builder.Services.AddSingleton<VerificationService>();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddScoped<UserSession>();
 builder.Services.AddScoped<AuthenticationStateProvider>(provider=>

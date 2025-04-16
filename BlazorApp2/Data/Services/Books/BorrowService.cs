@@ -2,6 +2,7 @@
 using BlazorApp2.Data.Services.Auth;
 using BlazorApp2.Data.Services.Fines;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BlazorApp2.Data.Services.Books
 { 
@@ -73,6 +74,20 @@ namespace BlazorApp2.Data.Services.Books
             await _userSession.AddLog(action: "return", entitytype: "book,reservation,fine");
             return true;
         }
+        public async Task<bool> ReportLost(Guid userId,Guid borrowId)
+        {
+            var borrowing = await _context.Borrowing
+                .Include(b => b.Book)
+                .FirstOrDefaultAsync(b => b.BorrowId == borrowId);
+            if (borrowing == null)
+                return false;
+            var book = borrowing.Book;
+            book.TotalCopies--;
+            book.UpdatedAt = DateTime.UtcNow;
+            await _fineService.CreateFine(userId, borrowId, ColFine(borrowing, true));
+            await _userSession.AddLog(action: "reportLost", entitytype: "book,fine");
+            return true;
+        }
         public async Task<Borrowing> GetBorrowingById(Guid borrowid)
         {
             return await _context.Borrowing.FindAsync(borrowid);
@@ -99,27 +114,36 @@ namespace BlazorApp2.Data.Services.Books
                 }
             }
         }
-        public decimal ColFine(Borrowing bor)
+        public decimal ColFine(Borrowing bor,bool isLost=false)
        {
-            if(bor.ReturnDate==null)
+            if(isLost)
             {
-                if(bor.DueDate<DateTime.Now)
+                if (bor.ReturnDate == null)
                 {
-                    TimeSpan difference=DateTime.Now - bor.DueDate;
-                    int days=difference.Days+1;
-                    return bor.FineAmount * days;
+                    if (bor.DueDate < DateTime.Now)
+                    {
+                        TimeSpan difference = DateTime.Now - bor.DueDate;
+                        int days = difference.Days + 1;
+                        return bor.FineAmount * days;
+                    }
+                    return default;
                 }
-                return default;
-            }else
-            {
-                if (bor.DueDate < bor.ReturnDate)
+                else
                 {
-                    TimeSpan difference= (TimeSpan)(bor.ReturnDate - bor.DueDate);
-                    int days=difference.Days+1;
-                    return bor.FineAmount * days;
+                    if (bor.DueDate < bor.ReturnDate)
+                    {
+                        TimeSpan difference = (TimeSpan)(bor.ReturnDate - bor.DueDate);
+                        int days = difference.Days + 1;
+                        return bor.FineAmount * days;
+                    }
+                    return default;
                 }
-                return default;
             }
+            else
+            {
+                return bor.FineAmount * 100;
+            }
+            
        }
     }
 }

@@ -53,7 +53,7 @@
 						@if(bor.Status=="Borrowed"||bor.Status=="Overdue")
 						{
 							<button @onclick="(()=>Return(bor.BorrowId))">立即归还</button>
-							<button disabled="@true">报失</button>
+							<button @onclick="(()=>Lost(bor.BorrowId))">报失</button>
 						}
 					</div>
 				</div>
@@ -87,6 +87,11 @@
 	{
 		var user = await UserSession.GetCurrentUser();
 		await BorrowService.ReturnBook(user.UserId,borId);
+	}
+	private async Task Lost(Guid borId)
+	{
+		var user = await UserSession.GetCurrentUser();
+		await BorrowService.ReportLost(user.UserId, borId);
 	}
 	private void NaviToDetail(Borrowing bor)
 	{

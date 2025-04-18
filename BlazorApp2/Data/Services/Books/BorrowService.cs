@@ -59,7 +59,7 @@ namespace BlazorApp2.Data.Services.Books
                 .Include(b => b.Book)
                 .FirstOrDefaultAsync(b => b.BorrowId == borrowId);
 
-            if (borrowing == null || borrowing.Status != "Borrowed")
+            if (borrowing == null || borrowing.Status=="Returned")
                 return false;
 
             borrowing.Status = "Returned";

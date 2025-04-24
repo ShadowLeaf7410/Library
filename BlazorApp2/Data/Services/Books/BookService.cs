@@ -5,10 +5,10 @@ namespace BlazorApp2.Data.Services.Books
 {
     public class BookService 
     {
-        private readonly LibDbContext _context;
+        private readonly IDbContextFactory<LibDbContext> _context;
         private readonly UserSession _userSession;
         //初始化
-        public BookService(LibDbContext context,UserSession userSession)
+        public BookService(IDbContextFactory<LibDbContext> context,UserSession userSession)
         {
             _context = context;
             _userSession = userSession;
@@ -16,49 +16,58 @@ namespace BlazorApp2.Data.Services.Books
         //添加书籍
         public async Task<Book> AddBook(Book book)
         {
+            await using var context = _context.CreateDbContext();
             book.CreatedAt = DateTime.UtcNow;
             book.UpdatedAt = DateTime.UtcNow;
 
-            _context.Books.Add(book);
-            await _context.SaveChangesAsync();
+            context.Books.Add(book);
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action: "AddBook", entitytype: "Book");
+            await context.SaveChangesAsync();
             return book;
         }
         //更新书籍
         public async Task<Book> UpdateBook(Book book)
         {
+            await using var context = _context.CreateDbContext();
             book.UpdatedAt = DateTime.UtcNow;
-            _context.Books.Update(book);
-            await _context.SaveChangesAsync();
+            context.Books.Update(book);
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action: "UpdateBook", entitytype: "Book");
+            await context.SaveChangesAsync();
             return book;
         }
         //删除书籍
         public async Task<bool> DeleteBook(Guid bookId)
         {
-            var book = await _context.Books.FindAsync(bookId);
+            await using var context = _context.CreateDbContext();
+            var book = await context.Books.FindAsync(bookId);
             if (book == null) return false;
 
-            _context.Books.Remove(book);
-            await _context.SaveChangesAsync();
+            context.Books.Remove(book);
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action: "DelBook", entitytype: "Book");
+            await context.SaveChangesAsync();
             return true;
         }
         //通过id选取书籍
         public async Task<Book> GetBookById(Guid bookId)
         {
-            return await _context.Books.FindAsync(bookId);
+            await using var context = _context.CreateDbContext();
+            return await context.Books.FindAsync(bookId);
         }
         public async Task<List<Book>> GetNewBooks()
         {
-            return await _context.Books
+            await using var context = _context.CreateDbContext();
+            return await context.Books
                 .OrderByDescending(b => b.CreatedAt)
                 .Take(4)
                 .ToListAsync();
         }
         public async Task<List<Book>> GetCommands()
         {
-            return await _context.Books
+            await using var context = _context.CreateDbContext();
+            return await context.Books
                 .Where(b => b.AvailableCopies > 0)
                 .OrderByDescending(b => b.CreatedAt)
                 .Take(8)
@@ -67,7 +76,8 @@ namespace BlazorApp2.Data.Services.Books
         //获取所有分类
         public async Task<List<string>> GetAllCategories()
         {
-            return await _context.Books
+            await using var context = _context.CreateDbContext();
+            return await context.Books
                 .Select(b => b.Category)
                 .Distinct()
                 .ToListAsync();
@@ -77,7 +87,8 @@ namespace BlazorApp2.Data.Services.Books
             string category = null, string status = null, string isbn = null,
             DateTime start=default,DateTime end=default)
         {
-            var query = _context.Books.AsQueryable();
+            await using var context = _context.CreateDbContext();
+            var query = context.Books.AsQueryable();
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 keyword = keyword.Trim().ToLower();

@@ -11,10 +11,10 @@ namespace BlazorApp2.Data.Services.Books
 
     public class ReservationService 
     {
-        private readonly LibDbContext _context;
+        private readonly IDbContextFactory<LibDbContext> _context;
         private readonly BookService _bookService;
         private readonly UserSession _userSession;
-        public ReservationService(LibDbContext context,BookService bookService,UserSession userSession)
+        public ReservationService(IDbContextFactory<LibDbContext> context,BookService bookService,UserSession userSession)
         {
             _context = context;
             _bookService = bookService;
@@ -23,7 +23,8 @@ namespace BlazorApp2.Data.Services.Books
         // 创建预约
         public async Task<Reservation> CreateReservation(Guid userId, Guid bookId, int expiryDays = 3)
         {
-            var book = await _bookService.GetBookById(bookId);
+            await using var context = _context.CreateDbContext();
+            var book = await context.Books.FindAsync(bookId);
             if (book == null)
                 return null;
 
@@ -38,15 +39,19 @@ namespace BlazorApp2.Data.Services.Books
 
             book.UpdatedAt = DateTime.UtcNow;
 
-            _context.Reservations.Add(reservation);
+            context.Reservations.Add(reservation);
+            await context.SaveChangesAsync();
             await Fresh(reservation.BookId);
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action:"Reserve",entitytype:"book,reservation");
+            await context.SaveChangesAsync();
             return reservation;
         }
         // 取消预约
         public async Task<bool> CancelReservation(Guid reservationId)
         {
-            var reservation = await _context.Reservations
+            await using var context = _context.CreateDbContext();
+            var reservation = await context.Reservations
                 .Include(r => r.Book)
                 .FirstOrDefaultAsync(r => r.ReservationId == reservationId);
 
@@ -54,20 +59,27 @@ namespace BlazorApp2.Data.Services.Books
                 return false;
 
             reservation.Status = "Cancelled";
+            await context.SaveChangesAsync();
             await Fresh(reservation.BookId);
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action: "CancelReserve", entitytype: "book,reservation");
+            await context.SaveChangesAsync();
             return true;
         }
         public async Task<bool> ExistVail(Guid userId,Guid bookId)
         {
-            return await _context.Reservations
-                .AnyAsync(r => r.UserId == userId && r.BookId == bookId && (r.Status == "Pending" || r.Status == "Fulfilled"));
+            await using var context = _context.CreateDbContext();
+            var count= await context.Reservations
+                .CountAsync(r => r.UserId == userId && r.BookId == bookId && (r.Status == "Pending" || r.Status == "Fulfilled"));
+            return count > 0;
         }
         // 获取用户预约
         public async Task<List<Reservation>> GetUserReservations(Guid userId)
         {
+            await using var context = _context.CreateDbContext();
             await FreshEx(userId:userId);
-            return await _context.Reservations
+            await context.SaveChangesAsync();
+            return await context.Reservations
                 .Include(r => r.Book)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.ReservationDate)
@@ -75,17 +87,18 @@ namespace BlazorApp2.Data.Services.Books
         }
         public async Task<Reservation> GetReservationByRId(Guid rId)
         {
-            return await _context.Reservations
+            await using var context = _context.CreateDbContext();
+            return await context.Reservations
                 .OrderByDescending(r => r.ReservationDate)
                 .FirstOrDefaultAsync(r => r.ReservationId == rId);
         }
         public async Task FreshEx(Guid userId=default,Guid bId=default)
         {
-            await _context.SaveChangesAsync();
+            await using var context = _context.CreateDbContext();
             DateTime dateTime = DateTime.Now;
             if (userId != default)
             {
-                var rese = await _context.Reservations
+                var rese = await context.Reservations
                     .Where(r => r.UserId == userId && (r.Status == "Pending" || r.Status == "Fulfilled"))
                     .ToListAsync();
                 foreach (var reservation in rese)
@@ -93,13 +106,15 @@ namespace BlazorApp2.Data.Services.Books
                     if (reservation.ExpiryDate < dateTime)
                     {
                         reservation.Status = "Expired";
+                        await context.SaveChangesAsync();
                         await Fresh(reservation.BookId);
+                        await context.SaveChangesAsync();
                     }
                 }
             }
             if(bId!=default)
             {
-                var rese=await _context.Reservations
+                var rese=await context.Reservations
                     .Where(r=>r.BookId==bId&& (r.Status == "Pending" || r.Status == "Fulfilled"))
                     .ToListAsync();
                 foreach (var reservation in rese)
@@ -109,14 +124,16 @@ namespace BlazorApp2.Data.Services.Books
                         reservation.Status = "Expired";
                     }
                 }
+                await context.SaveChangesAsync();
                 await Fresh(bId);
+                await context.SaveChangesAsync();
             }
         }
         public async Task Fresh(Guid bId)
         {
-            await _context.SaveChangesAsync();
-            var book=await _bookService.GetBookById(bId);
-            var rese = await _context.Reservations
+            await using var context = _context.CreateDbContext();
+            var book=await context.Books.FindAsync(bId);
+            var rese = await context.Reservations
                 .Where(r => r.BookId == bId&&(r.Status=="Pending"||r.Status=="Fulfilled"))
                 .OrderBy(r => r.ReservationDate)
                 .ToListAsync();
@@ -150,7 +167,7 @@ namespace BlazorApp2.Data.Services.Books
                     book.Status = "CheckOut";
                 }
             }
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 }

@@ -5,16 +5,17 @@ namespace BlazorApp2.Data.Services.Fines
 {
     public class FineService 
     {
-        private readonly LibDbContext _context;
+        private readonly IDbContextFactory<LibDbContext> _context;
         private readonly UserSession _userSession;
-        public FineService(LibDbContext context, UserSession userSession)
+        public FineService(IDbContextFactory<LibDbContext> context, UserSession userSession)
         {
             _context = context;
             _userSession = userSession;
         }
         public async Task<bool> CreateFine(Guid userId, Guid borId, decimal money)
         {
-            var borr = await _context.Borrowing.FirstOrDefaultAsync(b => b.BorrowId == borId);
+            await using var context = _context.CreateDbContext();
+            var borr = await context.Borrowing.FirstOrDefaultAsync(b => b.BorrowId == borId);
             if (borr == null || borr.Status != "Returned")
                 return false;
             var fine = new Fine
@@ -24,19 +25,23 @@ namespace BlazorApp2.Data.Services.Fines
                 Amount = money,
                 IssueDate = DateTime.UtcNow
             };
-            _context.Fines.Add(fine);
+            context.Fines.Add(fine);
+            await context.SaveChangesAsync();
             return true;
         }
         public async Task DealPay(Guid fId)
         {
-            var fine = await _context.Fines.FirstOrDefaultAsync(f => f.FineId==fId);
+            await using var context = _context.CreateDbContext();
+            var fine = await context.Fines.FirstOrDefaultAsync(f => f.FineId==fId);
             fine.Status = "Paid";
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await _userSession.AddLog(action: "Pay", entitytype: "fine");
+            await context.SaveChangesAsync();
         }
         public async Task<List<Fine>> GetUserFines(Guid userId)
         {
-            return await _context.Fines
+            await using var context = _context.CreateDbContext();
+            return await context.Fines
                 .Where(f=>f.UserId==userId)
                 .OrderByDescending(f=>f.IssueDate)
                 .ToListAsync(); 

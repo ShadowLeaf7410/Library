@@ -47,6 +47,7 @@
 </div>
 
 @code {
+
     [Parameter]
     public Guid BookId { get; set; }
     private Book book;
@@ -69,7 +70,9 @@
         var user = await UserSession.GetCurrentUser();
         if (user != null)
         {
-            if (await ReservationService.ExistVail(user.UserId, BookId))
+
+            var resu = await ReservationService.ExistVail(user.UserId, BookId);
+            if (resu)
             {
                 errorMessage = "已存在有关预约，不可多次预约";
                 return;

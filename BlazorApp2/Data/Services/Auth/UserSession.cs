@@ -14,8 +14,8 @@ namespace BlazorApp2.Data.Services.Auth
     public class UserSession : AuthenticationStateProvider
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly LibDbContext _context;
-        public UserSession(IHttpContextAccessor httpContextAccessor,LibDbContext context)
+        private readonly IDbContextFactory<LibDbContext> _context;
+        public UserSession(IHttpContextAccessor httpContextAccessor,IDbContextFactory<LibDbContext> context)
         {
             _httpContextAccessor = httpContextAccessor;
             _context = context;
@@ -51,13 +51,15 @@ namespace BlazorApp2.Data.Services.Auth
         }
         public async Task<string> VailEP(string email,string pass)
         {
-            var taruser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email&&u.Status!="Deleted");
+            await using var context = _context.CreateDbContext();
+            var taruser = await context.Users.FirstOrDefaultAsync(u => u.Email == email&&u.Status!="Deleted");
             if (taruser == null) return "email";
             if (!Veripassword(pass,taruser.HashedPassword)) return "password";
             return "null";
         }
         private async Task GenerateLoginToken(User user)
         {
+            await using var context = _context.CreateDbContext();
             var token = new LoginToken
             {
                 UserId = user.UserId,
@@ -65,12 +67,13 @@ namespace BlazorApp2.Data.Services.Auth
                 Expiration = DateTime.UtcNow.AddMinutes(15),
                 IsUsed = false
             };
-            _context.LoginTokens.Add(token);
-            await _context.SaveChangesAsync();
+            context.LoginTokens.Add(token);
+            await context.SaveChangesAsync();
         }
         public async Task Login(string email)
         {
-            var user = await _context.Users
+            await using var context = _context.CreateDbContext();
+            var user = await context.Users
                 .Include(u=>u.LoginTokens)
                 .FirstOrDefaultAsync(u => u.Email == email && u.Status != "Deleted");
             if (user == null)
@@ -85,9 +88,10 @@ namespace BlazorApp2.Data.Services.Auth
             loginToken.IsUsed = true;
             loginToken.User.LastLogin= DateTime.UtcNow;
             user.Status = "Active";
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await LoginWeb(user);
             await AddLog(action:"Login",entitytype:"User,LoginToken");
+            await context.SaveChangesAsync();
         }
         private async Task LogoffWeb()
         {
@@ -97,39 +101,42 @@ namespace BlazorApp2.Data.Services.Auth
         }
         public async Task Logoff()
         {
+            await using var context = _context.CreateDbContext();
             var authState=await GetAuthenticationStateAsync();
             var user=authState.User;
             await AddLog(action: "LogOff", entitytype: "User");
             if (user.Identity.IsAuthenticated)
             {
                 var username=user.Identity.Name;
-                var taruser = await _context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
+                var taruser = await context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
                 taruser.Status = "Suspended";
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             await LogoffWeb();
         }
         public async Task Logout()
         {
+            await using var context = _context.CreateDbContext();
             var authState = await GetAuthenticationStateAsync();
             var user = authState.User;
             if (user.Identity.IsAuthenticated)
             {
                 var username = user.Identity.Name;
-                var taruser = await _context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
+                var taruser = await context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
                 taruser.Status = "Deleted";
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             await LogoffWeb();
         }
         public async Task<User> GetCurrentUser()
         {
+            await using var context = _context.CreateDbContext();
             var authState=await GetAuthenticationStateAsync();
             var user=authState.User;
             if(user.Identity.IsAuthenticated)
             {
                 var username=user.Identity.Name;
-                return await _context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
+                return await context.Users.FirstOrDefaultAsync(u => u.Email == username && u.Status != "Deleted");
             }
             return null;
         }
@@ -159,6 +166,7 @@ namespace BlazorApp2.Data.Services.Auth
         }
         public async Task AddUser(string email,string password)
         {
+            await using var context = _context.CreateDbContext();
             var user = new User()
             {
                 UserId = Guid.NewGuid(),
@@ -166,12 +174,14 @@ namespace BlazorApp2.Data.Services.Auth
                 Name="匿名用户",
                 HashedPassword=Pltohpassword(password)
             };
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
             await AddLog(action: "AddUser/SignUp", entitytype: "User");
+            await context.SaveChangesAsync();
         }
         public async Task UpdateUser(string email,string name,string Hpassword)
         {
+            await using var context = _context.CreateDbContext();
             bool changes = false;
             var user = await GetCurrentUser();
             if (user == null)
@@ -193,16 +203,18 @@ namespace BlazorApp2.Data.Services.Auth
             }
             if(changes)
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 await AddLog(action: "UpdateUser", entitytype: "User");
+                await context.SaveChangesAsync();
             }
             else
                 return;
         }
         public async Task UpdateUsers(User changeduser)
         {
+            await using var context = _context.CreateDbContext();
             bool changes=false;
-            var user=await _context.Users.FirstOrDefaultAsync(u=>u.UserId==changeduser.UserId);
+            var user=await context.Users.FirstOrDefaultAsync(u=>u.UserId==changeduser.UserId);
             if (user == null)
                 return;
             if(user.Email!=changeduser.Email)
@@ -227,37 +239,44 @@ namespace BlazorApp2.Data.Services.Auth
             }
             if (changes)
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 await AddLog(action: "UpdateUser", entitytype: "User");
+                await context.SaveChangesAsync();
             }
             else
                 return;
         }
         public async Task FindLostPass(string email,string newpass)
         {
-            var user=await _context.Users.FirstOrDefaultAsync(u=>u.Email==email);
+            await using var context = _context.CreateDbContext();
+            var user=await context.Users.FirstOrDefaultAsync(u=>u.Email==email);
             user.HashedPassword = Pltohpassword(newpass);
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         public async Task SetLibrarian(Guid userId)
         {
-            var user=await _context.Users.FirstOrDefaultAsync(u=>u.UserId == userId);
+            await using var context = _context.CreateDbContext();
+            var user=await context.Users.FirstOrDefaultAsync(u=>u.UserId == userId);
             if(user == null) return;
             user.Role = "Librarian";
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await AddLog(action: "SetLibrarian", entitytype: "User");
+            await context.SaveChangesAsync();
         }
         public async Task SetUser(Guid userId)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            await using var context = _context.CreateDbContext();
+            var user = await context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
             if (user == null) return;
             user.Role = "User";
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             await AddLog(action: "SetUser", entitytype: "User");
+            await context.SaveChangesAsync();
         }
         public async Task<List<User>> SearchUsers(string keyword=null,string name=null,string email=null,string status=null,string role=null)
         {
-            var query=_context.Users.AsQueryable();
+            await using var context = _context.CreateDbContext();
+            var query=context.Users.AsQueryable();
             if(!string.IsNullOrWhiteSpace(keyword))
             {
                 keyword = keyword.Trim().ToLower();
@@ -280,10 +299,11 @@ namespace BlazorApp2.Data.Services.Auth
         public async Task AddLog(string action = null, string entitytype = null, string entityid = null,
             string details = null, string ip = null)
         {
+            await using var context = _context.CreateDbContext();
             var user = await GetCurrentUser();
             if (user == null)
             {
-                user=await _context.Users.FirstOrDefaultAsync(u => u.Email == "admin@library.edu");
+                user=await context.Users.FirstOrDefaultAsync(u => u.Email == "admin@library.edu");
             }
             ip = GetIp();
             var log = new SystemLog
@@ -296,8 +316,8 @@ namespace BlazorApp2.Data.Services.Auth
                 Details = details,
                 IpAddress = ip
             };
-            _context.SystemLogs.Add(log);
-            await _context.SaveChangesAsync();
+            context.SystemLogs.Add(log);
+            await context.SaveChangesAsync();
         }
 
         public string GetIp()

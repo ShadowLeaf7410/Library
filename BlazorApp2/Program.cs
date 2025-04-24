@@ -5,13 +5,16 @@ using BlazorApp2.Data.Services.Fines;
 using BlazorApp2.Data.Services.Mails;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddDbContext<LibDbContext>();
+builder.Services.AddDbContextFactory<LibDbContext>(options=>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 builder.Services.AddTransient<MailService>();
 builder.Services.AddSingleton<VerificationService>();
 builder.Services.AddSingleton<WeatherForecastService>();

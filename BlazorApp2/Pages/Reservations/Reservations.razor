@@ -7,84 +7,313 @@
 @inject ReservationService ReservationService;
 @inject NavigationManager Navigation;
 
-<h3>Reservation</h3>
-<div class="card">
-	@if(reservations!=null)
-	{
-		<p>筛选状态:</p>
-		<InputSelect @bind-Value="selstatus" class="form-control">
-			<option value=@string.Empty>无</option>
-			<option value="Pending">Pending</option>
-			<option value="Fulfilled">Fulfilled</option>
-			<option value="Cancelled">Cancelled</option>
-			<option value="Expired">Expired</option>
-		</InputSelect>
-		@foreach(var res in reservations)
-		{
-			@if(res.Status==selstatus||selstatus==string.Empty)
-			{
-				<div class="card">
-					<div class="card-body">
-						<p>
-							预订
-							<a @onclick="(()=>NaviToDetail(res))">
-								<BlazorApp2.Pages.Books.BookNameReader Reservation=@res>
-								</BlazorApp2.Pages.Books.BookNameReader>
-							</a>
-						</p>
-						<p>
-							ReservationDate:@res.ReservationDate
-						</p>
-						<p>
-							ExpiryDate:@res.ExpiryDate
-						</p>
-						<p>
-							Status:@res.Status
-						</p>
-						@if(res.Status=="Fulfilled")
-						{
-							<button @onclick="(()=>NaviToBorrow(res))">立即借阅</button>
-						}
-						@if (res.Status == "Pending"||res.Status=="Fulfilled")
-						{
-							<button @onclick="(()=>Cancel(res))">取消</button>
-						}
-					</div>
-				</div>
-			}
-		}
-	}
+@* <h3>Reservation</h3> *@
+<div class="reservation-page">
+    <h3>我的预订</h3>
+    <div class="reservation-container">
+        @if (reservations != null)
+        {
+            <div class="filter-section">
+                <label class="filter-label">筛选状态：</label>
+                <InputSelect @bind-Value="selstatus" class="filter-select">
+                    <option value=@string.Empty>全部</option>
+                    <option value="Pending">待处理</option>
+                    <option value="Fulfilled">已完成</option>
+                    <option value="Cancelled">已取消</option>
+                    <option value="Expired">已过期</option>
+                </InputSelect>
+            </div>
+            <div class="reservation-list">
+                @if (reservations.Any())
+                {
+                    @foreach (var res in reservations)
+                    {
+                        @if (res.Status == selstatus || selstatus == string.Empty)
+                        {
+                            <div class="reservation-card">
+                                <div class="card-body">
+                                    <p class="book-title">
+                                        预订书籍：
+                                        <a @onclick="() => NaviToDetail(res)" class="book-link">
+                                            <BlazorApp2.Pages.Books.BookNameReader Reservation=@res />
+                                        </a>
+                                    </p>
+                                    <p class="card-info">
+                                        预订日期：@res.ReservationDate.ToString("yyyy-MM-dd")
+                                    </p>
+                                    <p class="card-info">
+                                        到期日期：@res.ExpiryDate.ToString("yyyy-MM-dd")
+                                    </p>
+                                    <p class="card-info status @res.Status.ToLower()">
+                                        状态：@GetStatusText(res.Status)
+                                    </p>
+                                    <div class="card-actions">
+                                        @if (res.Status == "Fulfilled")
+                                        {
+                                            <button class="action-button" @onclick="() => NaviToBorrow(res)">立即借阅</button>
+                                        }
+                                        @if (res.Status == "Pending" || res.Status == "Fulfilled")
+                                        {
+                                            <button class="action-button cancel" @onclick="() => Cancel(res)">取消</button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <p class="no-data">暂无预订记录</p>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="no-data">加载中...</p>
+        }
+    </div>
 </div>
+
 @code {
-	private List<Reservation> reservations;
-	private string selstatus = string.Empty;
-	protected override async Task OnInitializedAsync()
-	{
-		var user = await UserSession.GetCurrentUser();
-		if (user == null)
-		{
-			Navigation.NavigateTo("/login");
-			return;
-		}
-		reservations = await ReservationService.GetUserReservations(user.UserId);
-	}
-	private async Task<string> GetBookName(Reservation res)
-	{
-		var book = await BookService.GetBookById(res.BookId);
-		return book.Title;
-	}
-	private async Task Cancel(Reservation res)
-	{
-		if (await ReservationService.CancelReservation(res.ReservationId))
-			StateHasChanged();
-		return;
-	}
-	private void NaviToBorrow(Reservation res)
-	{
-		Navigation.NavigateTo($"/borrows/create/{res.BookId}");
-	}
-	private void NaviToDetail(Reservation res)
-	{
-		Navigation.NavigateTo($"/books/details/{res.BookId}");
-	}
+    private List<Reservation> reservations;
+    private string selstatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        reservations = await ReservationService.GetUserReservations(user.UserId);
+    }
+
+    private async Task<string> GetBookName(Reservation res)
+    {
+        var book = await BookService.GetBookById(res.BookId);
+        return book.Title;
+    }
+
+    private async Task Cancel(Reservation res)
+    {
+        if (await ReservationService.CancelReservation(res.ReservationId))
+        {
+            reservations = await ReservationService.GetUserReservations((await UserSession.GetCurrentUser()).UserId);
+            StateHasChanged();
+        }
+    }
+
+    private void NaviToBorrow(Reservation res)
+    {
+        Navigation.NavigateTo($"/borrows/create/{res.BookId}");
+    }
+
+    private void NaviToDetail(Reservation res)
+    {
+        Navigation.NavigateTo($"/books/details/{res.BookId}");
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Pending" => "待处理",
+            "Fulfilled" => "已完成",
+            "Cancelled" => "已取消",
+            "Expired" => "已过期",
+            _ => status
+        };
+    }
 }
+
+<style>
+    /* 整体页面样式 */
+    .reservation-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* 浅灰背景，匹配首页和图书查询 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    h3 {
+        font-size: 28px;
+        color: #333;
+        text-align: center; /* 标题居中 */
+        margin-bottom: 20px;
+    }
+
+    /* 预订容器 */
+    .reservation-container {
+        background-color: #ffffff; /* 白色背景 */
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* 筛选区域 */
+    .filter-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-label {
+        font-size: 16px;
+        color: #333;
+    }
+
+    .filter-select {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        max-width: 200px;
+    }
+
+        .filter-select:focus {
+            border-color: #002248; /* 深蓝色聚焦边框 */
+            outline: none;
+        }
+
+    /* 预订列表 */
+    .reservation-list {
+        display: grid;
+        gap: 20px;
+    }
+
+    .reservation-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+        .reservation-card:hover {
+            transform: scale(1.02); /* 悬停放大 */
+        }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .book-title {
+        font-size: 18px;
+        color: #333;
+        margin: 0 0 10px;
+    }
+
+    .book-link {
+        color: #002248; /* 深蓝色链接 */
+        text-decoration: none;
+    }
+
+        .book-link:hover {
+            color: #005566; /* 悬停变亮 */
+            text-decoration: underline;
+        }
+
+    .card-info {
+        font-size: 14px;
+        color: #666;
+        margin: 5px 0;
+    }
+
+    .status {
+        font-weight: bold;
+    }
+
+        .status.pending {
+            color: #ffc107; /* 黄色表示待处理 */
+        }
+
+        .status.fulfilled {
+            color: #28a745; /* 绿色表示已完成 */
+        }
+
+        .status.cancelled {
+            color: #dc3545; /* 红色表示已取消 */
+        }
+
+        .status.expired {
+            color: #6c757d; /* 灰色表示已过期 */
+        }
+
+    .card-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .action-button {
+        padding: 8px 16px;
+        background-color: #002248; /* 深蓝色按钮 */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .action-button:hover {
+            background-color: #005566; /* 悬停变亮 */
+        }
+
+        .action-button.cancel {
+            background-color: #dc3545; /* 取消按钮为红色 */
+        }
+
+            .action-button.cancel:hover {
+                background-color: #c82333;
+            }
+
+    .no-data {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        h3 {
+            font-size: 24px;
+        }
+
+        .filter-section {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filter-select {
+            width: 100%;
+            max-width: none;
+        }
+
+        .reservation-card {
+            font-size: 14px;
+        }
+
+        .book-title {
+            font-size: 16px;
+        }
+
+        .card-info {
+            font-size: 12px;
+        }
+
+        .action-button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    }
+</style>

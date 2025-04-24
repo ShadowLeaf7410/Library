@@ -2,10 +2,36 @@
 @using BlazorApp2.Data.Services.Auth;
 @inject UserSession UserSession
 @inject NavigationManager Navigation
+@implements IDisposable
 
 <PageTitle>欢迎</PageTitle>
 
-<h1>欢迎使用吉林大学图示管理系统</h1>
+<div class="header">
+    <img src="/images/logo.jpg" alt="Jilin University Logo" class="logo" />
+    <h1>欢迎使用吉林大学图书管理系统</h1>
+    <nav class="nav-bar">
+        <div class="nav-item">
+            <span class="nav-link">图书管理<span class="dropdown-arrow"></span></span>
+            <div class="dropdown">
+                <a href="/books">图书查询</a>
+                <a href="/borrows">图书借阅</a>
+                <a href="/reservations">图书预定</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <span class="nav-link">用户管理<span class="dropdown-arrow"></span></span>
+            <div class="dropdown">
+                <a href="/fines">罚款</a>
+                <a href="/infi">个人界面</a>
+            </div>
+        </div>
+        <div class="nav-item">
+            <a href="/setting" class="nav-link">系统设置</a>
+        </div>
+    </nav>
+</div>
+
+<div class="page-container">
 
 <AuthorizeView Roles="User,Librarian,Admin">
 	<Authorized>
@@ -15,18 +41,297 @@
 	</Authorized>
 </AuthorizeView>
 
-<div>
-	这里安排一些方形div用于跳转
+    <div class="carousel-container">
+        <div class="carousel">
+            <div class="carousel-item @(activeSlide == 0 ? "active" : "")">
+                <img src="/images/one.png" alt="Campus Image 1" />
+            </div>
+            <div class="carousel-item @(activeSlide == 1 ? "active" : "")">
+                <img src="/images/two.png" alt="Campus Image 2" />
+            </div>
+            <div class="carousel-item @(activeSlide == 2 ? "active" : "")">
+                <img src="/images/logo.jpg" alt="Campus Image 3" />
+            </div>
+            <div class="carousel-indicators">
+                <span class="dot @(activeSlide == 0 ? "active" : "")" @onclick="() => SetActiveSlide(0)"></span>
+                <span class="dot @(activeSlide == 1 ? "active" : "")" @onclick="() => SetActiveSlide(1)"></span>
+                <span class="dot @(activeSlide == 2 ? "active" : "")" @onclick="() => SetActiveSlide(2)"></span>
+            </div>
+        </div>
+    </div>
 </div>
 
+
+
 @code{
-	private string name;
-	protected override async Task OnInitializedAsync()
+	private string? name;
+    private int activeSlide = 0;
+    private CancellationTokenSource cts = new CancellationTokenSource();
+
+
+    protected override async Task OnInitializedAsync()
 	{
 		var currentUser = await UserSession.GetCurrentUser();
 		if (currentUser == null)
 			return;
 		else
 			name = currentUser.Name;
-	}
+        StartAutoSlide();
+    }
+
+
+    private async void StartAutoSlide()
+    {
+        try
+        {
+            while (!cts.Token.IsCancellationRequested)
+            {
+                Console.WriteLine($"Switching to slide {activeSlide}");
+                activeSlide = (activeSlide + 1) % 3; // 循环切换（3 张图片）
+                StateHasChanged();
+                await Task.Delay(3000, cts.Token); // 每 5 秒切换
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            Console.WriteLine("Auto-slide cancelled");
+        }
+    }
+
+
+    private void SetActiveSlide(int index)
+    {
+        Console.WriteLine($"Manual switch to slide {index}");
+        activeSlide = index;
+        cts.Cancel(); // 点击导航点时取消自动播放
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("Disposing component, stopping carousel");
+        cts.Cancel();
+        cts.Dispose();
+    }
 }
+
+
+<style>
+    /* 头部区域 */
+    .header {
+        background-color: #002248; /* 吉林大学官网深蓝色 */
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Logo 和标题左对齐 */
+    }
+
+    .logo {
+        width: 120px; /* Logo 宽度，可调整 */
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        color: white !important; /* 强制白色文字 */
+        font-size: 28px;
+        margin: 0;
+        text-align: center; /* 标题居中 */
+        width: 100%; /* 确保标题占满宽度 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    /* 导航栏 */
+    .nav-bar {
+        width: 100%; /* 占满宽度 */
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-around; /* 链接均匀分布 */
+        background-color: #002248;
+        padding: 10px 0;
+    }
+
+    .nav-item {
+        position: relative; /* 为下拉菜单定位 */
+        display: inline-block;
+    }
+
+    .nav-link {
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        padding: 10px 15px;
+        display: block;
+    }
+
+        .nav-link:hover {
+            color: #FFFF00; /* 悬停时黄色 */
+            /*text-decoration: underline; */
+        }
+
+    /* 下拉箭头 */
+    .dropdown-arrow {
+        display: inline-block;
+        margin-left: 5px;
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid white; /* 向下箭头 */
+        vertical-align: middle;
+        transition: border-top 0.3s;
+    }
+
+    .nav-item:hover .dropdown-arrow {
+        border-top: none;
+        border-bottom: 5px solid white; /* 向上箭头 */
+    }
+
+    .dropdown {
+        display: none; /* 默认隐藏 */
+        position: absolute;
+        background-color: #002248; /* 白色背景，模仿官网 */
+        min-width: 160px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        z-index: 1;
+        top: 100%; /* 下拉菜单位于导航项下方 */
+        left: 0;
+    }
+
+    .nav-item:hover .dropdown {
+        display: block; /* 鼠标悬停时显示 */
+    }
+
+    .dropdown a {
+        color: white; /* 白色文字 */
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        font-size: 14px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .dropdown a:hover {
+            color: #FFFF00; /* 悬停时黄色 */
+        }
+
+    /* 页面容器 */
+    .page-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    h2 {
+        text-align: center;
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 30px;
+    }
+
+    /* 轮播样式 */
+    .carousel-container {
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .carousel {
+        position: relative;
+        width: 100%;
+        height: 400px;
+    }
+
+    .carousel-item {
+        display: none;
+        width: 100%;
+        height: 100%;
+    }
+
+        .carousel-item.active {
+            display: block;
+        }
+
+        .carousel-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+    .carousel-indicators {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+    }
+
+    .dot {
+        width: 12px;
+        height: 12px;
+        background-color: #bbb;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+        .dot.active {
+            background-color: #003087;
+        }
+
+        .dot:hover {
+            background-color: #005566;
+        }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .carousel {
+            height: 200px;
+        }
+
+        h1 {
+            font-size: 24px;
+        }
+
+        h2 {
+            font-size: 18px;
+        }
+
+        .logo {
+            width: 80px;
+        }
+
+        .nav-bar {
+            justify-content: space-between;
+            padding: 10px 15px;
+        }
+
+        .nav-link {
+            font-size: 14px;
+            padding: 8px 10px;
+        }
+
+        .dropdown {
+            min-width: 120px;
+        }
+
+            .dropdown a {
+                font-size: 12px;
+                padding: 10px 12px;
+            }
+
+        .dropdown-arrow {
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid white;
+        }
+
+        .nav-item:hover .dropdown-arrow {
+            border-top: none;
+            border-bottom: 4px solid white;
+        }
+    }
+</style>

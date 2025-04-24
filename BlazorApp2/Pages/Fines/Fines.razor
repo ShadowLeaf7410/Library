@@ -5,66 +5,268 @@
 @inject UserSession UserSession
 @inject FineService FineService
 @inject NavigationManager Navigation;
-<h3>Fine</h3>
-<div class="card">
-	@if(fines!=null)
-	{
-		<p>筛选状态:</p>
-		<InputSelect @bind-Value="selstatus" class="form-control">
-			<option value=@string.Empty>无</option>
-			<option value="Unpaid">Unpaid</option>
-			<option value="Paid">Paid</option>
-			<option value="Waived">Waived</option>
-		</InputSelect>
-		foreach(var fin in fines)
-		{
-			@if(fin.Status==selstatus||selstatus==string.Empty)
-			{
-				<div class="card">
-					<p>
-						<BlazorApp2.Pages.Books.BookNameReader Fine=@fin>
-						</BlazorApp2.Pages.Books.BookNameReader> 的账单
-					</p>
-					<p>
-						Amount:@fin.Amount
-					</p>
-					<p>
-						Status:@fin.Status
-					</p>
-					<p>
-						IssueDate:@fin.IssueDate
-					</p>
-					<p>
-						PaidDate:
-						@if(fin.PaidDate!=null)
-						{
-							@fin.PaidDate
-						}
-					</p>
-					@if(fin.Status=="Unpaid")
-					{
-						<button @onclick="(()=>Pay(fin.FineId))">支付</button>
-					}
-				</div>
-			}
-		}
-	}
+
+<div class="fine-page">
+    <h3>我的罚款</h3>
+    <div class="fine-container">
+        @if (fines != null)
+        {
+            <div class="filter-section">
+                <label class="filter-label">筛选状态：</label>
+                <InputSelect @bind-Value="selstatus" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="Unpaid">未支付</option>
+                    <option value="Paid">已支付</option>
+                    <option value="Waived">已减免</option>
+                </InputSelect>
+            </div>
+            <div class="fine-list">
+                @if (fines.Any())
+                {
+                    @foreach (var fin in fines)
+                    {
+                        @if (fin.Status == selstatus || selstatus == string.Empty)
+                        {
+                            <div class="fine-card">
+                                <div class="card-body">
+                                    <p class="book-title">
+                                        账单书籍：
+                                        <BlazorApp2.Pages.Books.BookNameReader Fine=@fin />
+                                    </p>
+                                    <p class="card-info">
+                                        罚款金额：@fin.Amount.ToString("C2")
+                                    </p>
+                                    <p class="card-info status @fin.Status.ToLower()">
+                                        状态：@GetStatusText(fin.Status)
+                                    </p>
+                                    <p class="card-info">
+                                        发行日期：@fin.IssueDate.ToString("yyyy-MM-dd")
+                                    </p>
+                                    <p class="card-info">
+                                        支付日期：@(fin.PaidDate?.ToString("yyyy-MM-dd") ?? "未支付")
+                                    </p>
+                                    <div class="card-actions">
+                                        @if (fin.Status == "Unpaid")
+                                        {
+                                            <button class="action-button" @onclick="() => Pay(fin.FineId)">支付</button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <p class="no-data">暂无罚款记录</p>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="no-data">加载中...</p>
+        }
+    </div>
 </div>
+
 @code {
-	private List<Fine> fines;
-	private string selstatus = string.Empty;
-	protected override async Task OnInitializedAsync()
-	{
-		var user = await UserSession.GetCurrentUser();
-		if (user == null)
-		{
-			Navigation.NavigateTo("/login");
-			return;
-		}
-		fines = await FineService.GetUserFines(user.UserId);
-	}
-	private async Task Pay(Guid fId)
-	{
-		await FineService.DealPay(fId);
-	}
+    private List<Fine> fines;
+    private string selstatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        fines = await FineService.GetUserFines(user.UserId);
+    }
+
+    private async Task Pay(Guid fId)
+    {
+        await FineService.DealPay(fId);
+        fines = await FineService.GetUserFines((await UserSession.GetCurrentUser())!.UserId);
+        StateHasChanged();
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Unpaid" => "未支付",
+            "Paid" => "已支付",
+            "Waived" => "已减免",
+            _ => status
+        };
+    }
 }
+
+<style>
+    /* 整体页面样式 */
+    .fine-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* 浅灰背景，匹配吉林大学官网 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    h3 {
+        font-size: 28px;
+        color: #333;
+        text-align: center; /* 标题居中 */
+        margin-bottom: 20px;
+    }
+
+    /* 罚款容器 */
+    .fine-container {
+        background-color: #ffffff; /* 白色背景 */
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* 筛选区域 */
+    .filter-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-label {
+        font-size: 16px;
+        color: #333;
+    }
+
+    .filter-select {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        max-width: 200px;
+    }
+
+        .filter-select:focus {
+            border-color: #003087; /* 深蓝色聚焦边框 */
+            outline: none;
+        }
+
+    /* 罚款列表 */
+    .fine-list {
+        display: grid;
+        gap: 20px;
+    }
+
+    .fine-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+        .fine-card:hover {
+            transform: scale(1.02); /* 悬停放大 */
+        }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .book-title {
+        font-size: 18px;
+        color: #333;
+        margin: 0 0 10px;
+    }
+
+    .card-info {
+        font-size: 14px;
+        color: #666;
+        margin: 5px 0;
+    }
+
+    .status {
+        font-weight: bold;
+    }
+
+        .status.unpaid {
+            color: #dc3545; /* 红色表示未支付 */
+        }
+
+        .status.paid {
+            color: #28a745; /* 绿色表示已支付 */
+        }
+
+        .status.waived {
+            color: #6c757d; /* 灰色表示已减免 */
+        }
+
+    .card-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .action-button {
+        padding: 8px 16px;
+        background-color: #003087; /* 深蓝色按钮 */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .action-button:hover {
+            background-color: #005566; /* 悬停变亮 */
+        }
+
+    .no-data {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        h3 {
+            font-size: 24px;
+        }
+
+        .filter-section {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filter-select {
+            width: 100%;
+            max-width: none;
+        }
+
+        .fine-card {
+            font-size: 14px;
+        }
+
+        .book-title {
+            font-size: 16px;
+        }
+
+        .card-info {
+            font-size: 12px;
+        }
+
+        .action-button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    }
+</style>

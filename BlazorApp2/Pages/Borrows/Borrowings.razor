@@ -6,95 +6,329 @@
 @inject BookService BookService
 @inject BorrowService BorrowService
 @inject NavigationManager Navigation;
-<h3>Borrowings</h3>
-<div class="card">
-	@if(borrowings!=null)
-	{
-		<p>筛选状态:</p>
-		<InputSelect @bind-Value="selstatus" class="form-control">
-			<option value=@string.Empty>无</option>
-			<option value="Borrowed">Borrowed</option>
-			<option value="Returned">Returned</option>
-			<option value="Overdue">Overdue</option>
-			<option value="Lost">Lost</option>
-		</InputSelect>
-		@foreach(var bor in borrowings)
-		{
-			@if(bor.Status==selstatus||selstatus==string.Empty)
-			{
-				<div class="card">
-					<div class="card-body">
-						<p>
-							借阅
-							<a @onclick="(()=>NaviToDetail(bor))">
-								<BlazorApp2.Pages.Books.BookNameReader Borrowing=@bor>
-								</BlazorApp2.Pages.Books.BookNameReader>
-							</a>
-						</p>
-						<p>
-							BorrowDate:@bor.BorrowDate
-						</p>
-						<p>
-							DueDate:@bor.DueDate
-						</p>
-						<p>
-							Status:@bor.Status
-						</p>
-						<p>
-							ReturnDate:
-							@if(bor.ReturnDate!=null)
-							{
-								@bor.ReturnDate
-							}
-						</p>
-						<p>
-							FineAmount:@GetFine(bor)
-						</p>
-						@if(bor.Status=="Borrowed"||bor.Status=="Overdue")
-						{
-							<button @onclick="(()=>Return(bor.BorrowId))">立即归还</button>
-							<button @onclick="(()=>Lost(bor.BorrowId))">报失</button>
-						}
-					</div>
-				</div>
-			}
-		}
-	}
+
+<div class="borrow-page">
+    <h3>我的借阅</h3>
+    <div class="borrow-container">
+        @if (borrowings != null)
+        {
+            <div class="filter-section">
+                <label class="filter-label">筛选状态：</label>
+                <InputSelect @bind-Value="selstatus" class="filter-select">
+                    <option value="">全部</option>
+                    <option value="Borrowed">已借阅</option>
+                    <option value="Returned">已归还</option>
+                    <option value="Overdue">超期</option>
+                    <option value="Lost">遗失</option>
+                </InputSelect>
+            </div>
+            <div class="borrow-list">
+                @if (borrowings.Any())
+                {
+                    @foreach (var bor in borrowings)
+                    {
+                        @if (bor.Status == selstatus || selstatus == string.Empty)
+                        {
+                            <div class="borrow-card">
+                                <div class="card-body">
+                                    <p class="book-title">
+                                        借阅书籍：
+                                        <a @onclick="() => NaviToDetail(bor)" class="book-link">
+                                            <BlazorApp2.Pages.Books.BookNameReader Borrowing=@bor />
+                                        </a>
+                                    </p>
+                                    <p class="card-info">
+                                        借阅日期：@bor.BorrowDate.ToString("yyyy-MM-dd")
+                                    </p>
+                                    <p class="card-info">
+                                        到期日期：@bor.DueDate.ToString("yyyy-MM-dd")
+                                    </p>
+                                    <p class="card-info status @bor.Status.ToLower()">
+                                        状态：@GetStatusText(bor.Status)
+                                    </p>
+                                    <p class="card-info">
+                                        归还日期：@(bor.ReturnDate?.ToString("yyyy-MM-dd") ?? "未归还")
+                                    </p>
+                                    <p class="card-info">
+                                        罚款金额：@GetFine(bor).ToString("C2")
+                                    </p>
+                                    <div class="card-actions">
+                                        @if (bor.Status == "Borrowed" || bor.Status == "Overdue")
+                                        {
+                                            <button class="action-button" @onclick="() => Return(bor.BorrowId)">立即归还</button>
+                                            <button class="action-button cancel" @onclick="() => Lost(bor.BorrowId)">报失</button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <p class="no-data">暂无借阅记录</p>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="no-data">加载中...</p>
+        }
+    </div>
 </div>
+
 @code {
-	private List<Borrowing> borrowings;
-	private string selstatus = string.Empty;
-	protected override async Task OnInitializedAsync()
-	{
-		var user = await UserSession.GetCurrentUser();
-		if (user == null)
-		{
-			Navigation.NavigateTo("/login");
-			return;
-		}
-		borrowings = await BorrowService.GetUserBorrwing(user.UserId);
-	}
-	private decimal GetFine(Borrowing bor)
-	{
-		return BorrowService.ColFine(bor);
-	}
-	private async Task<string> GetBookName(Borrowing bor)
-	{
-		var book = await BookService.GetBookById(bor.BookId);
-		return book.Title;
-	}
-	private async Task Return(Guid borId)
-	{
-		var user = await UserSession.GetCurrentUser();
-		await BorrowService.ReturnBook(user.UserId,borId);
-	}
-	private async Task Lost(Guid borId)
-	{
-		var user = await UserSession.GetCurrentUser();
-		await BorrowService.ReportLost(user.UserId, borId);
-	}
-	private void NaviToDetail(Borrowing bor)
-	{
-		Navigation.NavigateTo($"/books/details/{bor.BookId}");
-	}
+    private List<Borrowing> borrowings;
+    private string selstatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        borrowings = await BorrowService.GetUserBorrwing(user.UserId);
+    }
+
+    private decimal GetFine(Borrowing bor)
+    {
+        return BorrowService.ColFine(bor);
+    }
+
+    private async Task<string> GetBookName(Borrowing bor)
+    {
+        var book = await BookService.GetBookById(bor.BookId);
+        return book?.Title ?? "未知书籍";
+    }
+
+    private async Task Return(Guid borId)
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user != null)
+        {
+            await BorrowService.ReturnBook(user.UserId, borId);
+            borrowings = await BorrowService.GetUserBorrwing(user.UserId);
+            StateHasChanged();
+        }
+    }
+
+    private async Task Lost(Guid borId)
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user != null)
+        {
+            await BorrowService.ReportLost(user.UserId, borId);
+            borrowings = await BorrowService.GetUserBorrwing(user.UserId);
+            StateHasChanged();
+        }
+    }
+
+    private void NaviToDetail(Borrowing bor)
+    {
+        Navigation.NavigateTo($"/books/details/{bor.BookId}");
+    }
+
+    private string GetStatusText(string status)
+    {
+        return status switch
+        {
+            "Borrowed" => "已借阅",
+            "Returned" => "已归还",
+            "Overdue" => "超期",
+            "Lost" => "遗失",
+            _ => status
+        };
+    }
 }
+
+<style>
+    /* 整体页面样式 */
+    .borrow-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* 浅灰背景，匹配吉林大学官网 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    h3 {
+        font-size: 28px;
+        color: #333;
+        text-align: center; /* 标题居中 */
+        margin-bottom: 20px;
+    }
+
+    /* 借阅容器 */
+    .borrow-container {
+        background-color: #ffffff; /* 白色背景 */
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* 筛选区域 */
+    .filter-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-label {
+        font-size: 16px;
+        color: #333;
+    }
+
+    .filter-select {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        max-width: 200px;
+    }
+
+        .filter-select:focus {
+            border-color: #003087; /* 深蓝色聚焦边框 */
+            outline: none;
+        }
+
+    /* 借阅列表 */
+    .borrow-list {
+        display: grid;
+        gap: 20px;
+    }
+
+    .borrow-card {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+        .borrow-card:hover {
+            transform: scale(1.02); /* 悬停放大 */
+        }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .book-title {
+        font-size: 18px;
+        color: #333;
+        margin: 0 0 10px;
+    }
+
+    .book-link {
+        color: #003087; /* 深蓝色链接 */
+        text-decoration: none;
+    }
+
+        .book-link:hover {
+            color: #005566; /* 悬停变亮 */
+            text-decoration: underline;
+        }
+
+    .card-info {
+        font-size: 14px;
+        color: #666;
+        margin: 5px 0;
+    }
+
+    .status {
+        font-weight: bold;
+    }
+
+        .status.borrowed {
+            color: #28a745; /* 绿色表示已借阅 */
+        }
+
+        .status.returned {
+            color: #6c757d; /* 灰色表示已归还 */
+        }
+
+        .status.overdue {
+            color: #dc3545; /* 红色表示超期 */
+        }
+
+        .status.lost {
+            color: #ffc107; /* 黄色表示遗失 */
+        }
+
+    .card-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .action-button {
+        padding: 8px 16px;
+        background-color: #003087; /* 深蓝色按钮 */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .action-button:hover {
+            background-color: #005566; /* 悬停变亮 */
+        }
+
+        .action-button.cancel {
+            background-color: #dc3545; /* 报失按钮为红色 */
+        }
+
+            .action-button.cancel:hover {
+                background-color: #c82333;
+            }
+
+    .no-data {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        h3 {
+            font-size: 24px;
+        }
+
+        .filter-section {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .filter-select {
+            width: 100%;
+            max-width: none;
+        }
+
+        .borrow-card {
+            font-size: 14px;
+        }
+
+        .book-title {
+            font-size: 16px;
+        }
+
+        .card-info {
+            font-size: 12px;
+        }
+
+        .action-button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    }
+</style>

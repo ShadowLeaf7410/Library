@@ -60,7 +60,15 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.Use(async (context, next) => {
+    if (!context.Request.IsHttps)
+    {
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsync("仅支持HTTPS连接");
+        return;
+    }
+    await next();
+});
 app.MapControllers();
 
 app.MapBlazorHub();

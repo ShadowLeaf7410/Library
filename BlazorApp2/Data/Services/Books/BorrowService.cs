@@ -70,7 +70,10 @@ namespace BlazorApp2.Data.Services.Books
             book.AvailableCopies++;
             book.UpdatedAt = DateTime.UtcNow;
             await _reservationService.FreshEx(bId:book.BookId);
-            await _fineService.CreateFine(userId, borrowId, ColFine(borrowing));
+            if(ColFine(borrowing)!=0)
+            {
+                await _fineService.CreateFine(userId, borrowId, ColFine(borrowing));
+            }
             await _userSession.AddLog(action: "return", entitytype: "book,reservation,fine");
             return true;
         }
@@ -116,7 +119,7 @@ namespace BlazorApp2.Data.Services.Books
         }
         public decimal ColFine(Borrowing bor,bool isLost=false)
        {
-            if(isLost)
+            if(!isLost)
             {
                 if (bor.ReturnDate == null)
                 {

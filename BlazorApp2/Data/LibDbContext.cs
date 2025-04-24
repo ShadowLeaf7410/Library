@@ -12,7 +12,7 @@ namespace BlazorApp2.Data
         public DbSet<Fine> Fines { get; set; }
         public DbSet<SystemLog> SystemLogs { get; set; }
         private readonly string _connectionString;
-        private string _database = "SQLServer";
+        private string _database = "Oracle";
         //SQLServer
         //Oracle
         public LibDbContext(IConfiguration configuration)

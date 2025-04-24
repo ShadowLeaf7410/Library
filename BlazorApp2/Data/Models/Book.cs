@@ -11,7 +11,7 @@
         public string Category { get; set; }
         public string? Description { get; set; }
         public int TotalCopies { get; set; } = 1;
-        public int AvailableCopies { get; set; } = 1;
+        public int? AvailableCopies { get; set; } = 1;
         public string? Location { get; set; }
         public string Status { get; set; } = "Available";
         public string? ThumbnailUrl { get; set; }

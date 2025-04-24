@@ -1,27 +1,134 @@
 ﻿@page "/setting"
-@using BlazorApp2.Data;
-@using BlazorApp2.Data.Services.Auth;
+@using BlazorApp2.Data
+@using BlazorApp2.Data.Services.Auth
 @inject UserSession UserSession
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
-
-<h3>Setting</h3>
-<button @onclick="Logoff">退出登录</button>
-
+<div class="setting-page">
+    <h3>设置</h3>
+    <div class="setting-container">
+        <div class="language-section">
+            <label class="language-label">语言</label>
+            <select @bind="selectedLanguage" class="language-select">
+                <option value="zh-CN">简体中文</option>
+            </select>
+        </div>
+        <button @onclick="Logoff" class="logoff-button">退出登录</button>
+    </div>
+</div>
 
 @code {
-	protected override async Task OnInitializedAsync()
-	{
-		var user = await UserSession.GetCurrentUser();
-		if (user == null)
-		{
-			Navigation.NavigateTo("/login");
-			return;
-		}
-	}
-	private void Logoff()
-	{
-		Navigation.NavigateTo($"/account/logoff", forceLoad: true);
-	}
+    private string selectedLanguage = "zh-CN"; // 默认中文
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSession.GetCurrentUser();
+        if (user == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+    }
+
+    private void Logoff()
+    {
+        Navigation.NavigateTo($"/account/logoff", forceLoad: true);
+    }
 }
+
+<style>
+    /* 整体页面样式 */
+    .setting-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* 与 /books 一致 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    /* 标题 */
+    h3 {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    /* 设置容器 */
+    .setting-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* 语言选择区域 */
+    .language-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 200px;
+    }
+
+    .language-label {
+        font-size: 18px;
+        color: #333;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .language-select {
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #003087; /* 深蓝色边框 */
+        border-radius: 4px;
+        background-color: white;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        width: 100%;
+        cursor: pointer;
+    }
+
+        .language-select:focus {
+            outline: none;
+            border-color: #005566; /* 聚焦时边框颜色 */
+        }
+
+        .language-select option {
+            background-color: white;
+            color: #333;
+        }
+
+    /* 退出登录按钮 */
+    .logoff-button {
+        padding: 10px 20px;
+        background-color: #003087; /* 吉林大学深蓝色 */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        width: 100%;
+        max-width: 200px;
+    }
+
+        .logoff-button:hover {
+            background-color: #005566; /* 悬停颜色 */
+        }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .setting-container {
+            max-width: 100%;
+        }
+
+        .language-section, .language-select, .logoff-button {
+            max-width: 100%;
+        }
+    }
+</style>

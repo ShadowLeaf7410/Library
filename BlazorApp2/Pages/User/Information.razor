@@ -4,72 +4,75 @@
 @inject UserSession UserSession
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
-<h3>个人信息</h3>
 
-@if (user == null)
-{
-    <p>加载中...</p>
-}
-else
-{
-    <div class="card">
-        <div class="card-body">
+<div class="user-info-page">
+    <h3>个人信息</h3>
+    @if (user == null)
+    {
+        <p class="no-data">加载中...</p>
+    }
+    else
+    {
+        <div class="user-info-container">
             <EditForm Model="@user" OnValidSubmit="@HandleValidSubmit">
                 <DataAnnotationsValidator />
-                <ValidationSummary />
+                <ValidationSummary class="error-message" />
 
                 <div class="form-group">
-                    <label for="email">电子邮箱</label>
-                    <p>@user.Email</p>
+                    <label class="label">电子邮箱</label>
+                    <p class="info-text">@user.Email</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="name">姓名</label>
-                    <InputText id="name" @bind-Value="user.Name" class="form-control" />
-                    <ValidationMessage For="@(() => user.Name)" />
+                    <label class="label">姓名</label>
+                    <InputText class="form-input" @bind-Value="user.Name" />
+                    <ValidationMessage For="@(() => user.Name)" class="error-message" />
                 </div>
 
-                <button @onclick="changefix">修改密码</button>
+                <div class="form-group">
+                    <label class="label">角色</label>
+                    <p class="info-text">@user.Role</p>
+                </div>
 
-                @if(fixpassword)
+                <div class="form-group">
+                    <label class="label">注册时间</label>
+                    <p class="info-text">@user.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</p>
+                </div>
+
+                @if (fixpassword)
                 {
                     <div class="form-group">
-                        <label for="password">旧密码</label>
-                        <InputText id="password" type="password" @bind-Value="oldPassword" class="form-control" />
+                        <label class="label">旧密码</label>
+                        <InputText class="form-input" type="password" @bind-Value="oldPassword" />
                     </div>
 
                     <div class="form-group">
-                        <label for="password">新密码</label>
-                        <InputText id="password" type="password" @bind-Value="newPassword" class="form-control" />
+                        <label class="label">新密码</label>
+                        <InputText class="form-input" type="password" @bind-Value="newPassword" />
                     </div>
 
                     <div class="form-group">
-                        <label for="password">重复新密码</label>
-                        <InputText id="password" type="password" @bind-Value="againPassword" class="form-control" />
+                        <label class="label">重复新密码</label>
+                        <InputText class="form-input" type="password" @bind-Value="againPassword" />
                     </div>
-
-                    @if (errorMessage != null)
-                    {
-                        <div class="alert alert-danger mt-3">@errorMessage</div>
-                    }
                 }
 
-                <div class="form-group">
-                    <label>角色: @user.Role</label>
-                </div>
+                @if (errorMessage != null)
+                {
+                    <div class="error-message">@errorMessage</div>
+                }
 
-                <div class="form-group">
-                    <label>注册时间: @user.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</label>
-                </div>
-
-                <div class="form-group mt-3">
-                    <button type="submit" class="btn btn-primary">保存更改</button>
-                    <button type="button" class="btn btn-secondary ml-2" @onclick="@Cancel">恢复</button>
+                <div class="button-group">
+                    <button type="button" class="action-button secondary" @onclick="changefix">
+                        @(fixpassword ? "隐藏密码" : "修改密码")
+                    </button>
+                    <button type="submit" class="action-button">保存更改</button>
+                    <button type="button" class="action-button secondary" @onclick="Cancel">恢复</button>
                 </div>
             </EditForm>
         </div>
-    </div>
-}
+    }
+</div>
 
 @code {
     private User user;
@@ -89,7 +92,6 @@ else
             return;
         }
 
-        // 保存原始用户数据用于比较
         originalUser = new User
             {
                 Email = user.Email,
@@ -101,64 +103,231 @@ else
     private void changefix()
     {
         fixpassword = !fixpassword;
+        if (!fixpassword)
+        {
+            oldPassword = string.Empty;
+            newPassword = string.Empty;
+            againPassword = string.Empty;
+            errorMessage = null;
+        }
         StateHasChanged();
     }
 
     private async Task HandleValidSubmit()
     {
-        bool hasChanges = user.Email != originalUser.Email ||
-                         user.Name != originalUser.Name ||
+        errorMessage = null;
+
+        // Check for changes
+        bool hasChanges = user.Name != originalUser.Name ||
                          !string.IsNullOrEmpty(newPassword);
 
-        if (hasChanges)
+        if (!hasChanges)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "没有更改需要保存");
+            return;
+        }
+
+        // Validate password if changing
+        if (fixpassword && !string.IsNullOrEmpty(newPassword))
+        {
+            if (string.IsNullOrEmpty(oldPassword))
+            {
+                errorMessage = "请输入旧密码";
+                return;
+            }
+
+            var oldPasswordHash = UserSession.Pltohpassword(oldPassword);
+            if (oldPasswordHash != originalUser.HashedPassword)
+            {
+                errorMessage = "旧密码错误";
+                return;
+            }
+
+            if (newPassword != againPassword)
+            {
+                errorMessage = "两次输入的新密码不一致";
+                return;
+            }
+        }
+
+        try
         {
             string hashedPassword = string.IsNullOrEmpty(newPassword)
                 ? originalUser.HashedPassword
                 : UserSession.Pltohpassword(newPassword);
-            if (fixpassword)
-            {
-                if (oldPassword == null)
-                {
-                    errorMessage = "请输入旧密码";
-                    return;
-                }
-                if (hashedPassword!=originalUser.HashedPassword)
-                {
-                    errorMessage = "旧密码有误";
-                    return;
-                }
-                if (newPassword != againPassword)
-                {
-                    errorMessage = "两次输入的密码不一致";
-                    return;
-                }
-                errorMessage = "";
-                return;
-            }
+
             await UserSession.UpdateUser(user.Email, user.Name, hashedPassword);
 
-            // 更新原始数据
+            // Update original data
             originalUser.Email = user.Email;
             originalUser.Name = user.Name;
             originalUser.HashedPassword = hashedPassword;
 
-            // 清空密码字段
+            // Clear password fields
             oldPassword = string.Empty;
             newPassword = string.Empty;
             againPassword = string.Empty;
+            fixpassword = false;
 
-            // 显示成功消息或导航
             await JSRuntime.InvokeVoidAsync("alert", "修改成功！");
-
             user = await UserSession.GetCurrentUser();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"保存失败：{ex.Message}";
         }
     }
 
     private void Cancel()
     {
-        // 恢复原始数据
         user.Email = originalUser.Email;
         user.Name = originalUser.Name;
+        oldPassword = string.Empty;
         newPassword = string.Empty;
+        againPassword = string.Empty;
+        fixpassword = false;
+        errorMessage = null;
     }
 }
+
+<style>
+    /* Page styles */
+    .user-info-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* Light gray, matching Jilin University */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    h3 {
+        font-size: 28px;
+        color: #333;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    /* Card container */
+    .user-info-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* Form group */
+    .form-group {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+    }
+
+    .label {
+        font-size: 16px;
+        font-weight: bold;
+        color: #003087; /* Deep blue */
+        width: 120px;
+        margin-right: 10px;
+    }
+
+    .info-text {
+        font-size: 16px;
+        color: #333;
+        margin: 0;
+    }
+
+    .form-input {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: #fff;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        flex: 1;
+        max-width: 300px;
+    }
+
+        .form-input:focus {
+            border-color: #003087;
+            outline: none;
+        }
+
+    /* Button group */
+    .button-group {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .action-button {
+        padding: 10px 20px;
+        background-color: #003087; /* Deep blue */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+        transition: background-color 0.2s;
+    }
+
+        .action-button:hover {
+            background-color: #005566; /* Hover brightens */
+        }
+
+        .action-button.secondary {
+            background-color: #6c757d; /* Gray */
+        }
+
+            .action-button.secondary:hover {
+                background-color: #5a6268;
+            }
+
+    .no-data {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .error-message {
+        font-size: 14px;
+        color: #dc3545; /* Red */
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    /* Responsive design */
+    @@media (max-width: 768px) {
+        h3 {
+            font-size: 24px;
+        }
+
+        .form-group {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .label {
+            width: auto;
+            margin-bottom: 5px;
+        }
+
+        .form-input {
+            width: 100%;
+            max-width: none;
+        }
+
+        .info-text {
+            font-size: 14px;
+        }
+
+        .action-button {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+    }
+</style>

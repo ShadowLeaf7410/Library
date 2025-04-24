@@ -14,8 +14,8 @@
             <span class="nav-link">图书管理<span class="dropdown-arrow"></span></span>
             <div class="dropdown">
                 <a href="/books">图书查询</a>
-                <a href="/borrows">图书借阅</a>
-                <a href="/reservations">图书预定</a>
+                <a href="/borrows">借阅记录</a>
+                <a href="/reservations">预定记录</a>
             </div>
         </div>
         <div class="nav-item">
@@ -44,13 +44,13 @@
     <div class="carousel-container">
         <div class="carousel">
             <div class="carousel-item @(activeSlide == 0 ? "active" : "")">
-                <img src="/images/one.png" alt="Campus Image 1" />
+                <img src="/images/one.jpg" alt="Campus Image 1" />
             </div>
             <div class="carousel-item @(activeSlide == 1 ? "active" : "")">
-                <img src="/images/two.png" alt="Campus Image 2" />
+                <img src="/images/two.jpg" alt="Campus Image 2" />
             </div>
             <div class="carousel-item @(activeSlide == 2 ? "active" : "")">
-                <img src="/images/logo.jpg" alt="Campus Image 3" />
+                <img src="/images/there.jpg" alt="Campus Image 3" />
             </div>
             <div class="carousel-indicators">
                 <span class="dot @(activeSlide == 0 ? "active" : "")" @onclick="() => SetActiveSlide(0)"></span>

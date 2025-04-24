@@ -3,6 +3,7 @@
 @using BlazorApp2.Data.Services.Books;
 @inject BookService BookService
 @inject NavigationManager Navigation
+
 <div class="book-homepage">
     <!-- 搜索区域 -->
     <div class="search-section">
@@ -20,45 +21,45 @@
             </AuthorizeView>
         </div>
     </div>
-
-    <!-- 广告轮播区 -->
-    <div class="ad-section">
-        <h3>热门推荐</h3>
-        <div class="ad-carousel">
-            @foreach (var featuredBook in featuredBooks)
-            {
-                <div class="ad-item" @onclick="() => ViewBookDetails(featuredBook.BookId)">
-                    <img src="@(featuredBook.ThumbnailUrl ?? "images/default-book.png")"
-                         alt="@featuredBook.Title" />
-                    <div class="ad-info">
-                        <h4>@featuredBook.Title</h4>
-                        <p>@featuredBook.Author</p>
-                    </div>
+<!-- 广告轮播区 -->
+<div class="ad-section">
+    <h3>热门推荐</h3>
+    <div class="ad-carousel">
+        @foreach (var featuredBook in featuredBooks)
+        {
+            <div class="ad-item" @onclick="() => ViewBookDetails(featuredBook.BookId)">
+                <img src="@(featuredBook.ThumbnailUrl ?? "images/default-book.png")"
+                     alt="@featuredBook.Title" />
+                <div class="ad-info">
+                    <h4>@featuredBook.Title</h4>
+                    <p>@featuredBook.Author</p>
                 </div>
-            }
-        </div>
+            </div>
+        }
     </div>
+</div>
 
-    <!-- 书籍推荐区 -->
-    <div class="recommendation-section">
-        <h3>新书上架</h3>
-        <div class="book-grid">
-            @foreach (var book in recommendedBooks)
-            {
-                <div class="book-card" @onclick="() => ViewBookDetails(book.BookId)">
-                    <img src="@(book.ThumbnailUrl ?? "images/default-book.png")"
-                         alt="@book.Title" />
-                    <div class="book-info">
-                        <h4>@book.Title</h4>
-                        <p class="author">@book.Author</p>
-                        <p class="status @(book.AvailableCopies > 0 ? "available" : "unavailable")">
-                            @(book.AvailableCopies > 0 ? "可借阅" : "已借出")
-                        </p>
-                    </div>
+<!-- 书籍推荐区 -->
+<div class="recommendation-section">
+    <h3>新书上架</h3>
+    <div class="book-grid">
+        @foreach (var book in recommendedBooks)
+        {
+            <div class="book-card" @onclick="() => ViewBookDetails(book.BookId)">
+                <img src="@(book.ThumbnailUrl ?? "images/default-book.png")"
+                     alt="@book.Title" />
+                <div class="book-info">
+                    <h4>@book.Title</h4>
+                    <p class="author">@book.Author</p>
+                    <p class="status @(book.AvailableCopies > 0 ? "available" : "unavailable")">
+                        @(book.AvailableCopies > 0 ? "可借阅" : "已借出")
+                    </p>
                 </div>
-            }
-        </div>
+            </div>
+        }
     </div>
+</div>
+
 </div>
 
 @code {
@@ -66,49 +67,48 @@
     private List<Book> featuredBooks = new();
     private List<Book> recommendedBooks = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        // 获取特色推荐书籍(示例：最近添加的4本书)
-        featuredBooks = await BookService.GetNewBooks();
+protected override async Task OnInitializedAsync()
+{
+    // 获取特色推荐书籍(示例：最近添加的4本书)
+    featuredBooks = await BookService.GetNewBooks();
 
-        // 获取推荐书籍(示例：可借阅的书籍按添加时间排序)
-        recommendedBooks = await BookService.GetCommands();
-    }
+    // 获取推荐书籍(示例：可借阅的书籍按添加时间排序)
+    recommendedBooks = await BookService.GetCommands();
+}
 
-    private void HandleKeyPress(KeyboardEventArgs e)
+private void HandleKeyPress(KeyboardEventArgs e)
+{
+    if (e.Key == "Enter")
     {
-        if (e.Key == "Enter")
-        {
-            SearchBooks();
-        }
-    }
-
-    private void SearchBooks()
-    {
-        if (!string.IsNullOrWhiteSpace(searchKeyword))
-        {
-            Navigation.NavigateTo($"/books/search?searchKeyword={searchKeyword}");
-        }
-    }
-
-    private void NavigateToSearch()
-    {
-        // 导航到高级搜索页面
-        Navigation.NavigateTo("/books/search");
-    }
-
-    public void NavigateToAdder()
-    {
-        Navigation.NavigateTo("/books/adder");
-    }
-
-    private void ViewBookDetails(Guid bookId)
-    {
-        Navigation.NavigateTo($"/books/details/{bookId}");
+        SearchBooks();
     }
 }
 
-<style>
+private void SearchBooks()
+{
+    if (!string.IsNullOrWhiteSpace(searchKeyword))
+    {
+        Navigation.NavigateTo($"/books/search?searchKeyword={searchKeyword}");
+    }
+}
+
+private void NavigateToSearch()
+{
+    // 导航到高级搜索页面
+    Navigation.NavigateTo("/books/search");
+}
+
+public void NavigateToAdder()
+{
+    Navigation.NavigateTo("/books/adder");
+}
+
+private void ViewBookDetails(Guid bookId)
+{
+    Navigation.NavigateTo($"/books/details/{bookId}");
+}
+
+}<style>
     /* 整体页面样式 */
     .book-homepage {
         max-width: 1200px;
@@ -289,3 +289,4 @@
             }
     }
 </style>
+

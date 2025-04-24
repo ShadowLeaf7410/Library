@@ -1,71 +1,74 @@
 ﻿@page "/books/edit/{bookId:guid}"
-@using BlazorApp2.Data.Models;
-@using BlazorApp2.Data.Services.Auth;
-@using BlazorApp2.Data.Services.Books;
-@using Microsoft.AspNetCore.WebUtilities
+@using BlazorApp2.Data.Models
+@using BlazorApp2.Data.Services.Auth
+@using BlazorApp2.Data.Services.Books
 @inject UserSession UserSession
 @inject BookService BookService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
-@if(book==null)
-{
-    <p>未找到指定的书籍</p>
-}else
-{
-    <img src="@(book.ThumbnailUrl ?? "images/default-book.png")">
-    <div class="card">
-        <div class="card-body">
-            <EditForm Model="book" OnInvalidSubmit="@HandleSubmit">
-                <DataAnnotationsValidator/>
-                <ValidationSummary/>
+<div class="edit-book-page">
+    <h3>编辑书籍信息</h3>
+    @if (book == null)
+    {
+        <p class="no-data">未找到指定的书籍</p>
+    }
+    else
+    {
+        <div class="book-image">
+            <img src="@(book.ThumbnailUrl ?? "images/default-book.png")" alt="@book.Title" />
+        </div>
+        <div class="edit-form-container">
+            <EditForm Model="book" OnValidSubmit="@HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="validation-summary" />
                 <div class="form-group">
-                    <label>Title</label>
+                    <label>书名</label>
                     <InputText @bind-Value="book.Title" class="form-control" />
-                    <ValidationMessage For="@(()=>book.Title)"/>
+                    <ValidationMessage For="@(() => book.Title)" />
                 </div>
                 <div class="form-group">
-                    <label>Author</label>
+                    <label>作者</label>
                     <InputText @bind-Value="book.Author" class="form-control" />
-                    <ValidationMessage For="@(()=>book.Author)" />
+                    <ValidationMessage For="@(() => book.Author)" />
                 </div>
                 <div class="form-group">
-                    <label>Publisher</label>
+                    <label>出版社</label>
                     <InputText @bind-Value="book.Publisher" class="form-control" />
                 </div>
                 <div class="form-group">
-                    <label>PublicationYear</label>
+                    <label>出版年份</label>
                     <InputNumber @bind-Value="book.PublicationYear" class="form-control" />
                 </div>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label>分类</label>
                     <InputText @bind-Value="book.Category" class="form-control" />
-                    <ValidationMessage For="@(()=>book.Category)"/>
+                    <ValidationMessage For="@(() => book.Category)" />
                 </div>
                 <div class="form-group">
                     <label>ISBN</label>
                     <InputText @bind-Value="book.ISBN" class="form-control" />
                 </div>
                 <div class="form-group">
-                    <label>Description</label>
+                    <label>描述</label>
                     <InputText @bind-Value="book.Description" class="form-control" />
                 </div>
                 <div class="form-group">
-                    <label>TotalCopies</label>
+                    <label>总册数</label>
                     <InputNumber @bind-Value="book.TotalCopies" class="form-control" />
-                    <ValidationMessage For="@(()=>book.TotalCopies)" />
+                    <ValidationMessage For="@(() => book.TotalCopies)" />
                 </div>
                 <div class="form-group">
-                    <label>AvailableCopies</label>
+                    <label>可用册数</label>
                     <InputNumber @bind-Value="book.AvailableCopies" class="form-control" />
-                    <ValidationMessage For="@(()=>book.AvailableCopies)" />
+                    <ValidationMessage For="@(() => book.AvailableCopies)" />
                 </div>
                 <div class="form-group">
-                    <label>Location</label>
+                    <label>位置</label>
                     <InputText @bind-Value="book.Location" class="form-control" />
                 </div>
                 <div class="form-group">
-                    <label>Status</label>
+                    <label>状态</label>
                     <InputSelect @bind-Value="book.Status" class="form-control">
                         <option value="Available">Available</option>
                         <option value="CheckedOut">CheckedOut</option>
@@ -73,32 +76,30 @@
                         <option value="Lost">Lost</option>
                         <option value="Maintenance">Maintenance</option>
                     </InputSelect>
-                    <ValidationMessage For="@(()=>book.Status)" />
+                    <ValidationMessage For="@(() => book.Status)" />
                 </div>
                 <div class="form-group">
-                    <label>ThumbnailUrl</label>
+                    <label>封面图片URL</label>
                     <InputText @bind-Value="book.ThumbnailUrl" class="form-control" />
                 </div>
-                <button type="submit" class="btn btn-primary">确定修改</button>
-                <button @onclick="Cancle" class="btn btn-primary">取消修改</button>
-                <button @onclick="NaviToBack" class="btn btn-primary">返回</button>
+                <div class="form-actions">
+                    <button type="submit" class="action-button">确定修改</button>
+                    <button @onclick="Cancle" class="action-button">取消修改</button>
+                    <button @onclick="NaviToBack" class="action-button">返回</button>
+                </div>
             </EditForm>
         </div>
-    </div>
-    <script>
-        window.goBack=function()
-        {
-        window.history.back();
-        }</script>
-}
-@if(errorMessage!=null)
-{
-    <div class="alert alert-danger mt-3">@errorMessage</div>
-}
-@if(isSuccess)
-{
-    <p>修改成功！</p>
-}
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-message">@errorMessage</div>
+    }
+    @if (isSuccess)
+    {
+        <div class="success-message">修改成功！</div>
+    }
+</div>
+
 @code {
     [Parameter]
     public Guid BookId { get; set; }
@@ -106,6 +107,7 @@
     private Book nbook;
     private string errorMessage;
     private bool isSuccess = false;
+
     protected override async Task OnInitializedAsync()
     {
         var user = await UserSession.getRole();
@@ -118,26 +120,31 @@
             Navigation.NavigateTo("/nopower");
         }
         book = await BookService.GetBookById(BookId);
-        nbook = new Book
+        if (book != null)
         {
-                BookId = book.BookId,
-                ISBN = book.ISBN,
-                Title = book.Title,
-                Author = book.Author,
-                Publisher = book.Publisher,
-                PublicationYear = book.PublicationYear,
-                Category = book.Category,
-                Description = book.Description,
-                TotalCopies = book.TotalCopies,
-                AvailableCopies = book.AvailableCopies,
-                Location = book.Location,
-                Status = book.Status,
-                ThumbnailUrl = book.ThumbnailUrl
-        };
+            nbook = new Book
+                {
+                    BookId = book.BookId,
+                    ISBN = book.ISBN,
+                    Title = book.Title,
+                    Author = book.Author,
+                    Publisher = book.Publisher,
+                    PublicationYear = book.PublicationYear,
+                    Category = book.Category,
+                    Description = book.Description,
+                    TotalCopies = book.TotalCopies,
+                    AvailableCopies = book.AvailableCopies,
+                    Location = book.Location,
+                    Status = book.Status,
+                    ThumbnailUrl = book.ThumbnailUrl
+                };
+        }
     }
+
     private async Task HandleSubmit()
     {
-        if(book.Title==string.Empty||book.Author==string.Empty||book.Category==string.Empty||book.Status==string.Empty)
+        if (string.IsNullOrEmpty(book.Title) || string.IsNullOrEmpty(book.Author) ||
+            string.IsNullOrEmpty(book.Category) || string.IsNullOrEmpty(book.Status))
         {
             errorMessage = "缺少不许为空的填充";
             isSuccess = false;
@@ -169,13 +176,190 @@
             };
         isSuccess = true;
     }
+
     private void Cancle()
     {
-        book = nbook;
+        book = new Book
+            {
+                BookId = nbook.BookId,
+                ISBN = nbook.ISBN,
+                Title = nbook.Title,
+                Author = nbook.Author,
+                Publisher = nbook.Publisher,
+                PublicationYear = nbook.PublicationYear,
+                Category = nbook.Category,
+                Description = nbook.Description,
+                TotalCopies = nbook.TotalCopies,
+                AvailableCopies = nbook.AvailableCopies,
+                Location = nbook.Location,
+                Status = nbook.Status,
+                ThumbnailUrl = nbook.ThumbnailUrl
+            };
+        errorMessage = string.Empty;
+        isSuccess = false;
         StateHasChanged();
     }
+
     private async Task NaviToBack()
     {
         await JSRuntime.InvokeVoidAsync("goBack");
     }
 }
+
+<style>
+    /* 整体页面样式 */
+    .edit-book-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5; /* 与 /books、/setting 一致 */
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+    /* 标题 */
+    h3 {
+        font-size: 24px;
+        color: #333;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    /* 书籍图片 */
+    .book-image {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+        .book-image img {
+            max-width: 200px;
+            height: auto;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+    /* 表单容器 */
+    .edit-form-container {
+        background-color: white;
+        border: 1px solid #003087; /* 深蓝色边框 */
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* 表单组 */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+        .form-group label {
+            font-size: 16px;
+            color: #333;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #003087; /* 深蓝色边框 */
+        border-radius: 4px;
+        background-color: white;
+        color: #333;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #005566; /* 聚焦时边框 */
+        }
+
+    /* 验证消息 */
+    .validation-summary, .field-validation-error {
+        color: #dc3545; /* 红色 */
+        font-size: 14px;
+        margin-top: 5px;
+        text-align: center;
+    }
+
+    /* 操作按钮 */
+    .form-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .action-button {
+        padding: 10px 20px;
+        background-color: #003087; /* 深蓝色 */
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        font-family: 'Microsoft YaHei', Arial, sans-serif;
+    }
+
+        .action-button:hover {
+            background-color: #005566; /* 悬停颜色 */
+        }
+
+    /* 错误和成功消息 */
+    .error-message {
+        font-size: 14px;
+        color: #dc3545; /* 红色 */
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .success-message {
+        font-size: 16px;
+        color: #28a745; /* 绿色 */
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* 无数据提示 */
+    .no-data {
+        font-size: 16px;
+        color: #666;
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .edit-form-container {
+            max-width: 100%;
+            padding: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .book-image img {
+            max-width: 150px;
+        }
+
+        .form-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-button {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+    window.goBack = function () {
+        window.history.back();
+    };
+</script>
